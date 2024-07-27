@@ -1,6 +1,6 @@
 # Define variables
-$imageName = "domain-provider"
-$containerName = "domain-provider-dev"
+$imageName = "mesh-router"
+$containerName = "mesh-router-provider-localhost"
 $dockerfilePath = ".."
 $originalPath = Get-Location
 

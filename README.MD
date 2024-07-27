@@ -40,6 +40,8 @@ docker run -d \
   -e DEFAULT_HOST="casaos" \            # Default host to redirect requests from name.domain.com
   -e NAME="nas" \                       # Desired subdomain name
   --network meta \                      # Network to communicate with other containers
+  --sysctl net.ipv4.ip_forward=1 \      # Enable IP forwarding
+  --sysctl net.ipv4.conf.all.src_valid_mark=1 \  # Required for Wireguard
   $imageName
 ```
 
@@ -73,5 +75,26 @@ docker run -d \
   -p 3000:3000 \                           # Port for requester registration
   -p 443:443 \                             # Main HTTPS entry point
   -p 51820:51820/udp \                     # Wireguard VPN port for NAS tunnels
+  --sysctl net.ipv4.ip_forward=1 \      # Enable IP forwarding
+  --sysctl net.ipv4.conf.all.src_valid_mark=1 \ # Required for Wireguard
   $imageName
+```
+```yml
+  routing:
+    image: $imageName
+    ports:
+      - "80:80"
+      - "443:443"
+      - "51820:51820/udp"
+    environment:
+      - PROVIDER_ANNONCE_DOMAIN=domain.com
+      - VPN_ENDPOINT_ANNOUNCE=x.x.x.x # Use the direct IP (beware a domain behind cloudflare will not work)
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    volumes:
+      - ./config.lua:/etc/nginx/lua/config.lua #optional
 ```
