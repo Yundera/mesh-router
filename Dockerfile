@@ -60,7 +60,7 @@ COPY nginx/requester/root/ /usr/share/nginx/html-requester/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-COPy ./nginx/wg0.conf /etc/wireguard/wg0.conf
+COPY ./nginx/wg0.conf /etc/wireguard/wg0.conf
 
 ENV DEFAULT_HOST=default
 ENV DEFAULT_HOST_PORT=80

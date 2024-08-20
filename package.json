@@ -9,7 +9,7 @@
     "start": "node dist",
     "build": "tsc",
     "tsc": "tsc",
-    "publish" : "npx wavepush publish"
+    "publish": "npx dockflow publish"
   },
   "license": "UNLICENSED",
   "dependencies": {
