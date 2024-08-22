@@ -38,7 +38,6 @@ try {
     -e PROVIDER="http://dprovider" `
     -e DEFAULT_HOST="casaos" `
     -e DEFAULT_HOST_PORT="8080" `
-    -e NAME="nas" `
     --network meta `
     --network provider `
     --name $containerName $imageName

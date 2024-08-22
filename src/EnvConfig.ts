@@ -2,10 +2,37 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 interface EnvConfig {
-    /** Bootstrap nodes coma separated */
-    BOOTSTRAP: string;
+    /** [provider] API used to verify if the user have righs to register on this server */
+    AUTH_API_URL: string;
+    /** [provider] Port for VPN */
+    VPN_PORT: string;
+    /** [provider] VPN endpoint announcement */
+    VPN_ENDPOINT_ANNOUNCE: string;
+    /** [provider] Provider announcement domain */
+    PROVIDER_ANNONCE_DOMAIN: string;
+    /** [provider] Server WireGuard public key */
+    SERVER_WG_PUBLIC_KEY: string;
+
+    /** **/
+
+    /** [requester] Default routing host (request will be routed to this host by default) */
+    DEFAULT_HOST: string;
+    /** [requester] Default routing host port (request will be routed to this host by default)*/
+    DEFAULT_HOST_PORT: string;
+    /** [requester]  provider connexion string <url>,<userid>,<secret> */
+    PROVIDER: string;
 }
 
+/**
+ * Load environment variables into the config object
+ */
 export const config: EnvConfig = {
-    BOOTSTRAP: process.env.BOOTSTRAP!,
+    AUTH_API_URL: process.env.AUTH_API_URL!,
+    VPN_PORT: process.env.VPN_PORT || '51820',
+    VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,
+    PROVIDER_ANNONCE_DOMAIN: process.env.PROVIDER_ANNONCE_DOMAIN!,
+    SERVER_WG_PUBLIC_KEY: process.env.SERVER_WG_PUBLIC_KEY!,
+    DEFAULT_HOST: process.env.DEFAULT_HOST || "default",
+    DEFAULT_HOST_PORT: process.env.DEFAULT_HOST_PORT || "80",
+    PROVIDER: process.env.PROVIDER!,
 };

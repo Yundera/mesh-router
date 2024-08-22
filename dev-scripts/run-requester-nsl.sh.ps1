@@ -35,10 +35,9 @@ try {
     #provider network is used locally so we can get an host name to resolve from inside the container (in prod it will just be the domain)
     docker run -d `
     --cap-add NET_ADMIN `
-    -e PROVIDER="https://nsl.sh" `
+    -e PROVIDER="https://nsl.sh,6zaCwt3DG6bzzJt6DQJn8WzKCh63,k2iewybsbjot68lth9tekb6xcdwqx8wklttwsz39jhnul445uspzfj6ycc5i29rvbzsroyto2spytsldzxbo6dfm6t7pofbh2riyr2afu0" `
     -e DEFAULT_HOST="casaos" `
     -e DEFAULT_HOST_PORT="8080" `
-    -e NAME="test" `
     --network meta `
     --name $containerName $imageName
 

@@ -38,10 +38,10 @@ try {
     # you have to create a network called provider docker network create provider
     docker run -d `
     --cap-add NET_ADMIN `
+    --cap-add SYS_MODULE `
     -e PROVIDER_ANNONCE_DOMAIN=localhost `
     -e VPN_ENDPOINT_ANNOUNCE=dprovider `
     -p 80:80 `
-    -p 443:443 `
     -p 51820:51820/udp `
     --network provider `
     --hostname dprovider `

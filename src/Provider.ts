@@ -1,22 +1,16 @@
-import {createLibp2p, Libp2p} from "libp2p";
-import {ipns} from '@helia/ipns';
 import {EventEmitter} from 'events';
-import {createHelia} from "helia";
-import {unixfs} from "@helia/unixfs";
-import {createConfig} from "./createConfig.js";
 import * as os from "node:os";
-import {peerIdFromString} from '@libp2p/peer-id'
 import {execSync} from 'child_process';
 import bodyParser from "body-parser";
 import cors from "cors";
 import express from 'express';
-import {registerRecvDTO, registerSendDTO} from "./dto.js";
+import {registerRecvDTO, registerSendDTO, verifyRecvDTO} from "./dto.js";
 import {IpManager} from "./lib/IpManager.js";
-import * as path from "node:path";
+import {config} from "./EnvConfig.js";
+import axios from "axios";
 
 export interface Data {
   nodeAddress: string[];
-  libp2p: Libp2p;
 }
 
 export class Provider {
@@ -26,9 +20,9 @@ export class Provider {
   private wgServerPublicKey: string;
 
   constructor() {
-    const vpnPort = process.env.VPN_PORT || '51820';
-    this.vpnEndpointAnnounce = `${(process.env.VPN_ENDPOINT_ANNOUNCE || process.env.PROVIDER_ANNONCE_DOMAIN)}:${vpnPort}`;
-    this.wgServerPublicKey = process.env.SERVER_WG_PUBLIC_KEY;
+    const vpnPort = config.VPN_PORT;
+    this.vpnEndpointAnnounce = `${(config.VPN_ENDPOINT_ANNOUNCE || config.PROVIDER_ANNONCE_DOMAIN)}:${vpnPort}`;
+    this.wgServerPublicKey = config.SERVER_WG_PUBLIC_KEY;
     if (!this.wgServerPublicKey) {
       throw new Error('SERVER_WG_PUBLIC_KEY not set');
     }
@@ -36,17 +30,25 @@ export class Provider {
     this.ipManager.leaseIp("10.16.0.2")
   }
 
-  registerPeer(data:registerSendDTO): registerRecvDTO {
-    let peerIdObj = peerIdFromString(data.peerId);
-    if (!peerIdObj) {
-      throw new Error('Invalid peerId');
-    }
+  async registerPeer(data: registerSendDTO): Promise<registerRecvDTO> {
     // publicKey is the wireguard public key of the client
     // add the peer to wg => wg set wg0 peer "K30I8eIxuBL3OA43Xl34x0Tc60wqyDBx4msVm8VLkAE=" allowed-ips 10.101.1.2/32
     const uniqueIp = this.ipManager.getFreeIp();
 
+    let serverData: verifyRecvDTO;
+    if (config.AUTH_API_URL) {
+      const verifyRet = await axios.get<verifyRecvDTO>(`${config.AUTH_API_URL}/${data.userId}/${data.authToken}`);
+      serverData = verifyRet.data;
+    } else {
+      serverData = {
+        serverDomain: config.PROVIDER_ANNONCE_DOMAIN,
+        domainName: 'test',
+      }
+    }
+
+
     // Add the peer to WireGuard
-    execSync(`wg set wg0 peer ${data.publicKey} allowed-ips ${uniqueIp}/32`);
+    execSync(`wg set wg0 peer ${data.vpnPublicKey} allowed-ips ${uniqueIp}/32`);
 
     const ret: registerRecvDTO = {
       wgConfig: {
@@ -61,11 +63,12 @@ export class Provider {
             persistentKeepalive: 3600,
           }]
       },
-      domain:process.env.PROVIDER_ANNONCE_DOMAIN
+      serverDomain: serverData.serverDomain,
+      domainName: serverData.domainName,
     }
-    this.peerIdIpMap.set(data.peerId, uniqueIp);
-    this.peerIdIpMap.set(data.name, uniqueIp);//TODO ENS support
-    console.log(`Registered ${data.name} ${data.peerId} with ip ${uniqueIp}`);
+    this.peerIdIpMap.set(data.userId, uniqueIp);
+    this.peerIdIpMap.set(serverData.domainName, uniqueIp);//TODO ENS support
+    console.log(`Registered ${serverData.domainName} ${data.userId} with ip ${uniqueIp}`);
     return ret;
   }
 
@@ -79,16 +82,6 @@ export class Provider {
     app.use(cors());
     const port = 3000;
 
-    let libp2p = await createLibp2p(await createConfig({}));
-    let ipfs = await createHelia({libp2p: libp2p});
-    let ufs = unixfs(ipfs);
-    const name = ipns(ipfs);
-    await libp2p.start();
-
-    libp2p.getMultiaddrs().forEach(multiaddr => {
-      console.log(`Listening on ${multiaddr.toString()}`);
-    });
-
     // Serve static files
     app.use(express.static('/usr/share/nginx/html-provider/'));
 
@@ -97,41 +90,51 @@ export class Provider {
     });
 
     app.get('/api/get_ip/:host', async (req, res) => {
-      let host = req.params.host;
-      host = host.replaceAll("-", ".") //all dash are consiered as dots
-      if(!host.endsWith(announcedDomain)) {
-        res.status(404).send('Invalid domain');
-        return;
-      }
+      try {
+        let host = req.params.host;
+        host = host.replaceAll("-", ".") //all dash are consiered as dots
+        if (!host.endsWith(announcedDomain)) {
+          res.status(404).send('Invalid domain');
+          return;
+        }
 
-      //remove the . + announced domain
-      const subDomain = host.substring(0, host.length - announcedDomain.length -1);
-      // takes the right most part of the domain eg aa.bb.cc => cc
-      const parts = subDomain.split('.');
-      const name = parts[parts.length - 1];
-      console.log(`found name ${name} ${subDomain}`);
+        //remove the . + announced domain
+        const subDomain = host.substring(0, host.length - announcedDomain.length - 1);
+        // takes the right most part of the domain eg aa.bb.cc => cc
+        const parts = subDomain.split('.');
+        const name = parts[parts.length - 1];
+        console.log(`found name ${name} ${subDomain}`);
 
-      if(!name){
-        //if no name it means it is the root domain and or the API server (this server)
-        res.send('http://127.0.0.1:3000');
-        return;
-      }
+        if (!name) {
+          //if no name it means it is the root domain and or the API server (this server)
+          res.send('http://127.0.0.1:3000');
+          return;
+        }
 
-      //will be directly used by nginx to proxy the request
-      let ip = this.peerIdIpMap.get(name);
-      if (!ip) {
-        res.status(404).send('IP not found');
-        return;
+        //will be directly used by nginx to proxy the request
+        let ip = this.peerIdIpMap.get(name);
+        if (!ip) {
+          res.status(404).send('IP not found');
+          return;
+        }
+        console.log(`found ip for ${name}: ${ip}`)
+        const ret = `http://${ip}:80`
+        res.send(ret);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal error');
       }
-      console.log(`found ip for ${name}: ${ip}`)
-      const ret = `http://${ip}:80`
-      res.send(ret);
     });
 
     app.post('/api/register', async (req, res) => {
-      const data: registerSendDTO = req.body;
-      const ret = await this.registerPeer(data);
-      res.send(ret);
+      try {
+        const data: registerSendDTO = req.body;
+        const ret = await this.registerPeer(data);
+        res.send(ret);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal error');
+      }
     });
 
     app.listen(port, () => {

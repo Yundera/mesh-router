@@ -1,37 +1,43 @@
 import axios from "axios";
-import {loadOrCreatePeerId} from "./lib/LoadOrCreatePeerId.js";
 import {generateKeyPair, WgConfig} from "wireguard-tools";
 import {registerRecvDTO, registerSendDTO} from "./dto.js";
 import * as fs from 'fs/promises';
+import {config} from "./EnvConfig.js";
+import {sign} from "./lib/KeyLib.js";
 
-export async function startRequester(providerURL: string, peerIdConf?: string) {
+export async function startRequester(providerString: string) {
   try {
-    const peerId = await loadOrCreatePeerId(peerIdConf);
-    const {publicKey, privateKey} = await generateKeyPair()
-    console.log(`PeerId: ${peerId.toString()}`);
+// providerString := "http://provider:port,<userid (optional)>,<secret (optional)>"
+    const [providerURL, userId = '', privateKey = ''] = providerString.split(',');
+    const wgKeys = await generateKeyPair()
+    let token = null;
+    if(privateKey && userId) {
+      token = await sign(privateKey, userId);
+    }
     const dta: registerSendDTO = {
-      name: process.env.NAME,//wanted name - should be unique - leave empty to get the entire domain
-      peerId: peerId.toString(),
-      publicKey: publicKey
+      userId: userId,
+      vpnPublicKey: wgKeys.publicKey,
+      authToken: token,
     }
     const result: registerRecvDTO = (await axios.post(`${providerURL}/api/register`, dta)).data;
-    console.log(result.wgConfig);
+    console.log("VPN configuration :", result.wgConfig);
+    console.log(`Root Domain: ${result.domainName}.${result.serverDomain}`);
 
     // write the result.domain in file /var/run/meta/domain
     try {
       // Ensure the directory exists
       await fs.mkdir('/var/run/meta', { recursive: true });
-      await fs.writeFile('/var/run/meta/domain', result.domain);
-      await fs.writeFile('/var/run/meta/default_host', process.env.DEFAULT_HOST || "default");
-      await fs.writeFile('/var/run/meta/default_host_port', process.env.DEFAULT_HOST_PORT || "80");
-      console.log(`Domain ${result.domain} written to file successfully`);
+      await fs.writeFile('/var/run/meta/domain', result.serverDomain);
+      await fs.writeFile('/var/run/meta/default_host', config.DEFAULT_HOST);
+      await fs.writeFile('/var/run/meta/default_host_port', config.DEFAULT_HOST_PORT);
+      console.log(`Domain ${result.domainName}.${result.serverDomain} config saved successfully`);
     } catch (err) {
       console.error('Error writing domain to file:', err);
     }
 
 
     //fill specific local fields
-    result.wgConfig.wgInterface.privateKey = privateKey;
+    result.wgConfig.wgInterface.privateKey = wgKeys.privateKey;
     result.wgConfig.filePath = `/etc/wireguard/wg0.conf`;
     const config1 = new WgConfig(result.wgConfig)
     await config1.writeToFile()
