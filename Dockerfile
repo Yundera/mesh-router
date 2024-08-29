@@ -62,7 +62,7 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./nginx/wg0.conf /etc/wireguard/wg0.conf
 
-ENV DEFAULT_HOST=default
-ENV DEFAULT_HOST_PORT=80
+#ENV DEFAULT_HOST=casaos
+#ENV DEFAULT_HOST_PORT=80
 
 ENTRYPOINT ["/entrypoint.sh"]

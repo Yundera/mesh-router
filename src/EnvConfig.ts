@@ -32,7 +32,7 @@ export const config: EnvConfig = {
     VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,
     PROVIDER_ANNONCE_DOMAIN: process.env.PROVIDER_ANNONCE_DOMAIN!,
     SERVER_WG_PUBLIC_KEY: process.env.SERVER_WG_PUBLIC_KEY!,
-    DEFAULT_HOST: process.env.DEFAULT_HOST || "default",
-    DEFAULT_HOST_PORT: process.env.DEFAULT_HOST_PORT || "80",
+    DEFAULT_HOST: process.env.DEFAULT_HOST || "casaos",
+    DEFAULT_HOST_PORT: process.env.DEFAULT_HOST_PORT || "8080",
     PROVIDER: process.env.PROVIDER!,
 };
