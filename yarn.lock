@@ -77,12 +77,14 @@ __metadata:
     "@libp2p/interface": "npm:^1.7.0"
     "@libp2p/peer-id": "npm:^4.2.4"
     "@types/express": "npm:4.17.21"
+    "@types/libsodium-wrappers": "npm:^0.7.14"
     axios: "npm:^1.7.2"
     body-parser: "npm:^1.20.2"
     cors: "npm:^2.8.5"
     dotenv: "npm:16.4.5"
     express: "npm:4.19.2"
     fs-extra: "npm:11.2.0"
+    libsodium-wrappers: "npm:^0.7.15"
     multiformats: "npm:^13.2.2"
     netmask: "npm:^2.0.2"
     node-cron: "npm:3.0.3"
@@ -193,6 +195,13 @@ __metadata:
   version: 2.0.4
   resolution: "@types/http-errors@npm:2.0.4"
   checksum: 10c0/494670a57ad4062fee6c575047ad5782506dd35a6b9ed3894cea65830a94367bd84ba302eb3dde331871f6d70ca287bfedb1b2cf658e6132cd2cbd427ab56836
+  languageName: node
+  linkType: hard
+
+"@types/libsodium-wrappers@npm:^0.7.14":
+  version: 0.7.14
+  resolution: "@types/libsodium-wrappers@npm:0.7.14"
+  checksum: 10c0/4d6da97de60a1f79b2d3bb195ab3051e2216aae9aa70b9e13c2d9fb0675fbb68d57266e82eb80886f7dcbaba2c7b16f14acecb5a6b6ae4fea267b2499f49272c
   languageName: node
   linkType: hard
 
@@ -751,6 +760,22 @@ __metadata:
     graceful-fs:
       optional: true
   checksum: 10c0/4f95b5e8a5622b1e9e8f33c96b7ef3158122f595998114d1e7f03985649ea99cb3cd99ce1ed1831ae94c8c8543ab45ebd044207612f31a56fd08462140e46865
+  languageName: node
+  linkType: hard
+
+"libsodium-wrappers@npm:^0.7.15":
+  version: 0.7.15
+  resolution: "libsodium-wrappers@npm:0.7.15"
+  dependencies:
+    libsodium: "npm:^0.7.15"
+  checksum: 10c0/852c4879f3b3c48332fe704454c4dfc2a1387f9f3930faf84d8626c9670f93365e56aa186d14e2995e5d352f08af07c99c06a2c26d5f44818039f1014d404171
+  languageName: node
+  linkType: hard
+
+"libsodium@npm:^0.7.15":
+  version: 0.7.15
+  resolution: "libsodium@npm:0.7.15"
+  checksum: 10c0/7bdb529681f30be0533f33921509c36823d18f6fc158d66842e50d33cd9635ebb0dd02eb1fe3b51e192996ff173949f846793e10103371c8b179e5c29525556c
   languageName: node
   linkType: hard
 

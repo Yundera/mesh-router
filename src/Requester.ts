@@ -7,17 +7,13 @@ import {sign} from "./lib/KeyLib.js";
 
 export async function startRequester(providerString: string) {
   try {
-// providerString := "http://provider:port,<userid (optional)>,<secret (optional)>"
-    const [providerURL, userId = '', privateKey = ''] = providerString.split(',');
-    const wgKeys = await generateKeyPair()
-    let token = null;
-    if(privateKey && userId) {
-      token = await sign(privateKey, userId);
-    }
+// providerString := "http://provider:port,<userid (optional)>,<signature (optional)>"
+    const [providerURL, userId = '', signature = ''] = providerString.split(',');
+    const wgKeys = await generateKeyPair();
     const dta: registerSendDTO = {
       userId: userId,
       vpnPublicKey: wgKeys.publicKey,
-      authToken: token,
+      authToken: signature,
     }
     const result: registerRecvDTO = (await axios.post(`${providerURL}/api/register`, dta)).data;
     console.log("VPN configuration :", result.wgConfig);

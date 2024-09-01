@@ -45,7 +45,10 @@ export class Provider {
         domainName: 'test',
       }
     }
-
+    if(!serverData.serverDomain || !serverData.domainName) {
+      console.log(serverData);
+        throw new Error('Invalid domain');
+    }
 
     // Add the peer to WireGuard
     execSync(`wg set wg0 peer ${data.vpnPublicKey} allowed-ips ${uniqueIp}/32`);
