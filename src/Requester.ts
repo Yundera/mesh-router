@@ -7,7 +7,7 @@ import {sign} from "./lib/KeyLib.js";
 
 export async function startRequester(providerString: string) {
   try {
-// providerString := "http://provider:port,<userid (optional)>,<signature (optional)>"
+    // providerString := "http://provider:port,<userid (optional)>,<signature (optional)>"
     const [providerURL, userId = '', signature = ''] = providerString.split(',');
     const wgKeys = await generateKeyPair();
     const dta: registerSendDTO = {

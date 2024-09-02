@@ -47,3 +47,15 @@ export async function sign(privKeyBase36: string, message: string): Promise<stri
     // Return the signature as a base36 string
     return base36.encode(signatureBytes);
 }
+
+/**
+ * Compute the shared password between the server and the client
+ * Skey and Pkey in base36 sodium sign ed25519 keys
+ * */
+export async function computeDHSharedPassword(sKey: string, pkey: string): Promise<string> {
+    const dhPrivKey = sodium.crypto_sign_ed25519_sk_to_curve25519(base36.decode(sKey));
+    const dhPubKey = sodium.crypto_sign_ed25519_pk_to_curve25519(base36.decode(pkey));
+    let password = base36.encode(sodium.crypto_scalarmult(dhPrivKey, dhPubKey));
+    password = password.substring(4,14);
+    return password;
+}

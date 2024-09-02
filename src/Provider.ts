@@ -47,7 +47,7 @@ export class Provider {
     }
     if(!serverData.serverDomain || !serverData.domainName) {
       console.log(serverData);
-        throw new Error('Invalid domain');
+        throw new Error('Invalid Signature');
     }
 
     // Add the peer to WireGuard
