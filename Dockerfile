@@ -60,9 +60,4 @@ COPY nginx/requester/root/ /usr/share/nginx/html-requester/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-COPY ./nginx/wg0.conf /etc/wireguard/wg0.conf
-
-#ENV DEFAULT_HOST=casaos
-#ENV DEFAULT_HOST_PORT=80
-
 ENTRYPOINT ["/entrypoint.sh"]

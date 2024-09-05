@@ -63,7 +63,7 @@ export class Provider {
             publicKey: this.wgServerPublicKey,
             allowedIps: ['10.16.0.0/16'],
             endpoint: this.vpnEndpointAnnounce,
-            persistentKeepalive: 3600,
+            persistentKeepalive: 360,
           }]
       },
       serverDomain: serverData.serverDomain,
