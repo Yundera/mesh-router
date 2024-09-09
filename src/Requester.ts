@@ -4,6 +4,11 @@ import {registerRecvDTO, registerSendDTO} from "./dto.js";
 import * as fs from 'fs/promises';
 import {config} from "./EnvConfig.js";
 
+import { exec as execCallback } from 'child_process';
+import { promisify } from 'util';
+
+const exec = promisify(execCallback);
+
 export async function startRequester(providerString: string) {
   try {
     // providerString := "http://provider:port,<userid (optional)>,<signature (optional)>"
@@ -40,6 +45,18 @@ export async function startRequester(providerString: string) {
     await config1.down()
     // bring up
     await config1.up()
+
+    // Send a ping to test the server connection
+    try {
+      const { stdout, stderr } = await exec('ping -c 4 10.16.0.1');
+      if (stderr) {
+        console.error(`Ping stderr: ${stderr}`);
+      } else {
+        console.log(`Ping stdout: ${stdout}`);
+      }
+    } catch (error) {
+      console.error(`Error executing ping: ${error.message}`);
+    }
   } catch (err){
     //exit with error if init fails
     console.error(err);
