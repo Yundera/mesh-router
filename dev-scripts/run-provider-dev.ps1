@@ -39,6 +39,7 @@ try {
     docker run -d `
     --cap-add NET_ADMIN `
     --cap-add SYS_MODULE `
+    --sysctl="net.ipv4.conf.all.src_valid_mark=1" `
     -e PROVIDER_ANNONCE_DOMAIN=localhost `
     -e VPN_ENDPOINT_ANNOUNCE=dprovider `
     -p 80:80 `

@@ -20,18 +20,25 @@ export SERVER_WG_PUBLIC_KEY=mnluKQZliNKHHV5cJHf3Mm4st4KIb7F+D/uH11wunlY=
 
 echo "public key: $SERVER_WG_PUBLIC_KEY"
 
-# Create WireGuard configuration
-cat <<EOF > /etc/wireguard/wg0.conf
+# Check if wg0.conf exists and is not empty
+if [ ! -s /etc/wireguard/wg0.conf ]; then
+  echo "Creating WireGuard configuration..."
+
+  cat <<EOF > /etc/wireguard/wg0.conf
 [Interface]
 Address = 10.16.0.1/16
 SaveConfig = true
 ListenPort = 51820
 PrivateKey = ${SERVER_WG_PRIVATE_KEY}
 
-[Peer]
-PublicKey = np1bI1Qk/5+u5APN6FEikAImZ5FaQnDpsNalD6S4njM=
-AllowedIPs = 10.16.0.2/32
+PostUp = iptables -t nat -A POSTROUTING -s 10.16.0.0/16 -o \$(ip route | grep default | awk '{print \$5}') -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT;
+PostDown = iptables -t nat -D POSTROUTING -s 10.16.0.0/16 -o \$(ip route | grep default | awk '{print \$5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;
 EOF
+
+else
+  echo "WireGuard configuration already exists and is not empty."
+fi
+
 wg-quick up wg0
 
 #######################

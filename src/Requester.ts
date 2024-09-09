@@ -3,7 +3,6 @@ import {generateKeyPair, WgConfig} from "wireguard-tools";
 import {registerRecvDTO, registerSendDTO} from "./dto.js";
 import * as fs from 'fs/promises';
 import {config} from "./EnvConfig.js";
-import {sign} from "./lib/KeyLib.js";
 
 export async function startRequester(providerString: string) {
   try {
