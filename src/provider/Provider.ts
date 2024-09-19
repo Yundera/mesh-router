@@ -1,5 +1,5 @@
-import { VPNManager } from './provider/VPNManager.js';
-import { ApiServer } from './provider/APIServer.js';
+import { VPNManager } from './VPNManager.js';
+import { ApiServer } from './APIServer.js';
 
 export async function startProvider(announcedDomain: string) {
     const vpnManager = new VPNManager();

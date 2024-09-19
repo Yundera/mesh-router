@@ -1,6 +1,6 @@
-import {startRequester} from "./Requester.js";
-import {startProvider} from "./Provider.js";
-import {config} from "./EnvConfig.js";
+import {startRequester} from "./requester/Requester.js";
+import {startProvider} from "./provider/Provider.js";
+import {config} from "./common/EnvConfig.js";
 
 if(config.PROVIDER_ANNONCE_DOMAIN) {
   //start a provider

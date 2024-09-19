@@ -1,8 +1,8 @@
 import axios from "axios";
 import {generateKeyPair, WgConfig} from "wireguard-tools";
-import {registerRecvDTO, registerSendDTO} from "./dto.js";
+import {registerRecvDTO, registerSendDTO} from "../common/dto.js";
 import * as fs from 'fs/promises';
-import {config} from "./EnvConfig.js";
+import {config} from "../common/EnvConfig.js";
 
 import { exec as execCallback } from 'child_process';
 import { promisify } from 'util';

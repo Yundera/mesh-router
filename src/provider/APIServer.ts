@@ -5,8 +5,8 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import axios from 'axios';
 import {VPNManager} from './VPNManager.js';
-import {registerRecvDTO, registerSendDTO, verifyRecvDTO} from '../dto.js';
-import {config} from '../EnvConfig.js';
+import {registerRecvDTO, registerSendDTO, verifyRecvDTO} from '../common/dto.js';
+import {config} from '../common/EnvConfig.js';
 
 export class ApiServer {
     private vpnManager: VPNManager;
@@ -72,10 +72,10 @@ export class ApiServer {
                 // takes the right most part of the domain eg aa.bb.cc => cc
                 const parts = subDomain.split('.');
                 const name = parts[parts.length - 1];
-                console.log(`found name ${name} ${subDomain}`);
 
                 if (!name) {
                     //if no name it means it is the root domain and or the API server (this server)
+                    console.log(`name not found for ${host}`);
                     res.send('http://127.0.0.1:3000');
                     return;
                 }
@@ -86,7 +86,7 @@ export class ApiServer {
                     res.status(404).send('IP not found');
                     return;
                 }
-                console.log(`found ip for ${name}: ${ip}`)
+                console.log(`found ip for ${name} (${subDomain}): ${ip}`)
                 const ret = `http://${ip}:80`
                 res.send(ret);
             } catch (err) {
