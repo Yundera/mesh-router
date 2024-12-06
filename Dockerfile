@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Copy package and yarn config
 COPY ./package.json ./
-COPY ./.yarnrc.yml ./
+#COPY ./.yarnrc.yml ./
 RUN yarn install
 
 # Copy the source and config files

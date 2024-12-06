@@ -28,6 +28,10 @@ export class ApiServer {
             };
         }
         if (!serverData.serverDomain || !serverData.domainName) {
+            if (config.AUTH_API_URL) {
+                console.error(`Url => ${config.AUTH_API_URL}/${data.userId}/${data.authToken}`);
+            }
+            console.error(serverData);
             throw new Error('Invalid Signature');
         }
 
