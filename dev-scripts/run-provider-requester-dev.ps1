@@ -5,3 +5,4 @@ cd $scriptPath
 # Run the provider and requester dev scripts
 & ".\run-provider-dev.ps1"
 & ".\run-requester-dev.ps1"
+& ".\run-example-casa-img.ps1"
