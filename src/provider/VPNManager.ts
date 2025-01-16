@@ -30,9 +30,18 @@ function generatePeerConfig(meta: Meta, vpnPublicKey: string, uniqueIp: string):
     `AllowedIPs = ${uniqueIp}/32\n`;
 }
 
+export interface VPNManagerConfig {
+  VPNPort?: string;
+  VPNEndPointAnnounce?: string;
+  VPNIpRange?: string;
+  announcedDomain: string;
+}
+
 export class VPNManager {
-  private ipManager = new IpManager("10.16.0.0/16");
+  private ipManager
   private vpnEndpointAnnounce: string;
+  private vpnPort: string;
+  private ipRange: string;
   private wgConfPath: string = '/etc/wireguard/wg0.conf';
   private peersMap = new Map<string, Peer>();
 
@@ -43,33 +52,31 @@ export class VPNManager {
 
   private serverPrivateKey: string = '';
   private serverPublicKey: string = '';
+  private serverIp: string;
 
   constructor() {
   }
 
-  async setup(config: {
-    VPNPort?: string;
-    VPNEndPointAnnounce?: string;
-    VPNIpRange?: string;
-    ProviderAnnounceDomain: string;
-  }): Promise<void> {
-    if (!config.ProviderAnnounceDomain) {
+  async setup(config: VPNManagerConfig): Promise<void> {
+    if (!config.announcedDomain) {
       throw new Error('PROVIDER_ANNONCE_DOMAIN not set');
     }
 
-    console.log(`PROVIDER_ANNONCE_DOMAIN is set to '${config.ProviderAnnounceDomain}'`);
+    this.vpnPort = config.VPNPort || '51820';
+    this.ipRange = config.VPNIpRange || '10.16.0.0/16';
+    this.vpnEndpointAnnounce = `${(config.VPNEndPointAnnounce || config.announcedDomain)}:${this.vpnPort}`;
+
+    // Reserve default IPs
+    this.serverIp = this.ipRange.replace(/\.0\/\d+$/, '.1');
+    this.ipManager = new IpManager(this.ipRange);
+    this.ipManager.leaseIp(this.serverIp); // host
+
+    console.log(`PROVIDER_ANNONCE_DOMAIN is set to '${config.announcedDomain}'`);
 
     await this.ensureDirectoryExists();
     await this.generateKeysIfNeeded();
     await this.createConfigIfNeeded();
     await this.startWireGuard();
-
-
-    const vpnPort: string = config.VPNPort || '51820';
-    this.vpnEndpointAnnounce = `${(config.VPNEndPointAnnounce || config.ProviderAnnounceDomain)}:${vpnPort}`;
-
-    // Reserve default IPs
-    this.ipManager.leaseIp("10.16.0.1");//host
 
     // Load reserved IPs from wg0.conf
     this.loadStaticData();
@@ -118,15 +125,14 @@ export class VPNManager {
       // Config doesn't exist or is empty, create it
       console.log('Creating WireGuard configuration...');
 
-      //TODO port and ip range should be configurable
       const config = `[Interface]
-Address = 10.16.0.1/16
+Address = ${this.serverIp}/${this.ipRange.split('/')[1]}
 SaveConfig = true
-ListenPort = 51820
+ListenPort = ${this.vpnPort}
 PrivateKey = ${this.serverPrivateKey}
 
-PostUp = iptables -t nat -A POSTROUTING -s 10.16.0.0/16 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT;
-PostDown = iptables -t nat -D POSTROUTING -s 10.16.0.0/16 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;`;
+PostUp = iptables -t nat -A POSTROUTING -s ${this.ipRange} -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport ${this.vpnPort} -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT;
+PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport ${this.vpnPort} -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;`;
 
       await fs.writeFile(this.WG_CONFIG_PATH, config);
     }
@@ -250,7 +256,7 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.16.0.0/16 -o $(ip route | grep d
       peers: [
         {
           publicKey: this.serverPublicKey,
-          allowedIps: ['10.16.0.0/16'],
+          allowedIps: [this.ipRange],
           endpoint: this.vpnEndpointAnnounce,
           persistentKeepalive: 25,
         }]

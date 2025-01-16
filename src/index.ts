@@ -42,10 +42,9 @@ async function setupNginxConfig(): Promise<void> {
     await startProvider({
       announcedDomain: config.PROVIDER_ANNONCE_DOMAIN,
       authApiUrl: config.AUTH_API_URL,
-      providerAnnonceDomain: config.PROVIDER_ANNONCE_DOMAIN,
       VPNPort: config.VPN_PORT,
       VPNEndPointAnnounce: config.VPN_ENDPOINT_ANNOUNCE,
-      ProviderAnnounceDomain: config.PROVIDER_ANNONCE_DOMAIN
+      VPNIpRange:'10.16.0.0/16',
     });
 
   } else {
