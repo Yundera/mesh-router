@@ -1,7 +1,12 @@
 import {execSync} from 'child_process';
-import * as fs from 'fs';
 import {IpManager} from '../lib/IpManager.js';
-import {config} from '../common/EnvConfig.js';
+import {exec} from 'child_process';
+import * as staticFs from 'fs';
+import {promises as fs} from 'fs';
+import {promisify} from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
 
 export interface Meta {
   name: string;
@@ -11,6 +16,11 @@ export interface Peer {
   meta: Meta;
   publicKey: string;
   ip: string;
+}
+
+interface WGInterface {
+  peers: { endpoint: string; allowedIps: string[]; persistentKeepalive: number; publicKey: string }[];
+  wgInterface: { address: string[] }
 }
 
 function generatePeerConfig(meta: Meta, vpnPublicKey: string, uniqueIp: string): string {
@@ -23,17 +33,40 @@ function generatePeerConfig(meta: Meta, vpnPublicKey: string, uniqueIp: string):
 export class VPNManager {
   private ipManager = new IpManager("10.16.0.0/16");
   private vpnEndpointAnnounce: string;
-  private wgServerPublicKey: string;
   private wgConfPath: string = '/etc/wireguard/wg0.conf';
   private peersMap = new Map<string, Peer>();
 
+  private readonly WG_CONFIG_DIR = '/etc/wireguard';
+  private readonly SERVER_PRIVATE_KEY_PATH = path.join(this.WG_CONFIG_DIR, 'server_private.key');
+  private readonly SERVER_PUBLIC_KEY_PATH = path.join(this.WG_CONFIG_DIR, 'server_public.key');
+  private readonly WG_CONFIG_PATH = path.join(this.WG_CONFIG_DIR, 'wg0.conf');
+
+  private serverPrivateKey: string = '';
+  private serverPublicKey: string = '';
+
   constructor() {
-    const vpnPort = config.VPN_PORT;
-    this.vpnEndpointAnnounce = `${(config.VPN_ENDPOINT_ANNOUNCE || config.PROVIDER_ANNONCE_DOMAIN)}:${vpnPort}`;
-    this.wgServerPublicKey = config.SERVER_WG_PUBLIC_KEY;
-    if (!this.wgServerPublicKey) {
-      throw new Error('SERVER_WG_PUBLIC_KEY not set');
+  }
+
+  async setup(config: {
+    VPNPort?: string;
+    VPNEndPointAnnounce?: string;
+    VPNIpRange?: string;
+    ProviderAnnounceDomain: string;
+  }): Promise<void> {
+    if (!config.ProviderAnnounceDomain) {
+      throw new Error('PROVIDER_ANNONCE_DOMAIN not set');
     }
+
+    console.log(`PROVIDER_ANNONCE_DOMAIN is set to '${config.ProviderAnnounceDomain}'`);
+
+    await this.ensureDirectoryExists();
+    await this.generateKeysIfNeeded();
+    await this.createConfigIfNeeded();
+    await this.startWireGuard();
+
+
+    const vpnPort: string = config.VPNPort || '51820';
+    this.vpnEndpointAnnounce = `${(config.VPNEndPointAnnounce || config.ProviderAnnounceDomain)}:${vpnPort}`;
 
     // Reserve default IPs
     this.ipManager.leaseIp("10.16.0.1");//host
@@ -44,10 +77,69 @@ export class VPNManager {
     this.cleanUpWgConf();
   }
 
+  private async ensureDirectoryExists(): Promise<void> {
+    try {
+      await fs.access(this.WG_CONFIG_DIR);
+    } catch {
+      await fs.mkdir(this.WG_CONFIG_DIR, {recursive: true});
+    }
+  }
+
+  private async generateKeysIfNeeded(): Promise<void> {
+    try {
+      await fs.access(this.SERVER_PRIVATE_KEY_PATH);
+      // If keys exist, read them
+      this.serverPrivateKey = (await fs.readFile(this.SERVER_PRIVATE_KEY_PATH, 'utf-8')).trim();
+      this.serverPublicKey = (await fs.readFile(this.SERVER_PUBLIC_KEY_PATH, 'utf-8')).trim();
+    } catch {
+      // Generate new keys
+      const {stdout: privateKey} = await execAsync('wg genkey');
+      this.serverPrivateKey = privateKey.trim();
+      await fs.writeFile(this.SERVER_PRIVATE_KEY_PATH, this.serverPrivateKey);
+
+      const {stdout: publicKey} = await execAsync(`echo "${this.serverPrivateKey}" | wg pubkey`);
+      this.serverPublicKey = publicKey.trim();
+      await fs.writeFile(this.SERVER_PUBLIC_KEY_PATH, this.serverPublicKey);
+    }
+
+    // Export public key to environment
+    process.env.SERVER_WG_PUBLIC_KEY = this.serverPublicKey;
+    console.log(`public key: ${this.serverPublicKey}`);
+  }
+
+  private async createConfigIfNeeded(): Promise<void> {
+    try {
+      const stats = await fs.stat(this.WG_CONFIG_PATH);
+      if (stats.size > 0) {
+        console.log('WireGuard configuration already exists and is not empty.');
+        return;
+      }
+    } catch {
+      // Config doesn't exist or is empty, create it
+      console.log('Creating WireGuard configuration...');
+
+      //TODO port and ip range should be configurable
+      const config = `[Interface]
+Address = 10.16.0.1/16
+SaveConfig = true
+ListenPort = 51820
+PrivateKey = ${this.serverPrivateKey}
+
+PostUp = iptables -t nat -A POSTROUTING -s 10.16.0.0/16 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT;
+PostDown = iptables -t nat -D POSTROUTING -s 10.16.0.0/16 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;`;
+
+      await fs.writeFile(this.WG_CONFIG_PATH, config);
+    }
+  }
+
+  private async startWireGuard(): Promise<void> {
+    await execAsync('wg-quick up wg0');
+  }
+
   // Method to load and reserve IPs from wg0.conf
   private loadStaticData() {
     try {
-      const confContent = fs.readFileSync(this.wgConfPath, 'utf8');
+      const confContent = staticFs.readFileSync(this.wgConfPath, 'utf8');
       const peerSections = confContent.match(/\[Peer\][^\[]+/g); // Get all [Peer] sections
 
       if (peerSections) {
@@ -91,10 +183,10 @@ export class VPNManager {
   // Function to remove a peer from the WireGuard interface
   private removeWgPeer(name: string) {
     try {
-      if(!this.peersMap.has(name)) {
+      if (!this.peersMap.has(name)) {
         return;
       }
-      const {publicKey,ip} = this.peersMap.get(name);
+      const {publicKey, ip} = this.peersMap.get(name);
       this.peersMap.delete(name);
       // wg command to remove peer from the active WireGuard configuration
       execSync(`wg set wg0 peer ${publicKey} remove`);
@@ -108,7 +200,7 @@ export class VPNManager {
   public cleanUpWgConf(): void {
     try {
       // Start with the default configuration (without peer sections)
-      let wgConfContent = fs.readFileSync(this.wgConfPath, 'utf8');
+      let wgConfContent = staticFs.readFileSync(this.wgConfPath, 'utf8');
 
       // Remove all existing [Peer] sections
       wgConfContent = wgConfContent.replace(/\[Peer\][^\[]+/g, '');
@@ -123,7 +215,7 @@ export class VPNManager {
       wgConfContent = wgConfContent.replace(/\n\s*\n+/g, '\n');
 
       // Write the updated configuration back to wg0.conf
-      fs.writeFileSync(this.wgConfPath, wgConfContent, 'utf8');
+      staticFs.writeFileSync(this.wgConfPath, wgConfContent, 'utf8');
       console.log('wg0.conf successfully updated with peersMap');
     } catch (err) {
       console.error(`Failed to apply peersMap to wg0.conf: ${err.message}`);
@@ -132,10 +224,7 @@ export class VPNManager {
   }
 
   // Register a peer
-  public registerPeer(vpnPublicKey: string, name: string): {
-    peers: { endpoint: string; allowedIps: string[]; persistentKeepalive: number; publicKey: string }[];
-    wgInterface: { address: string[] }
-  } {
+  public registerPeer(vpnPublicKey: string, name: string): WGInterface {
     // publicKey is the wireguard public key of the client
 
     const meta: Meta = {
@@ -146,7 +235,7 @@ export class VPNManager {
     const peerConfig = generatePeerConfig(meta, vpnPublicKey, uniqueIp);
 
     try {
-      fs.appendFileSync(this.wgConfPath, peerConfig);
+      staticFs.appendFileSync(this.wgConfPath, peerConfig);
     } catch (err) {
       console.error(`Failed to append to wg0.conf: ${err}`);
       throw new Error('Failed to update wg0.conf');
@@ -160,7 +249,7 @@ export class VPNManager {
       },
       peers: [
         {
-          publicKey: this.wgServerPublicKey,
+          publicKey: this.serverPublicKey,
           allowedIps: ['10.16.0.0/16'],
           endpoint: this.vpnEndpointAnnounce,
           persistentKeepalive: 25,
@@ -168,10 +257,10 @@ export class VPNManager {
     };
   }
 
-  getIpFromName(name: string): string {
+  public getIpFromName(name: string): string {
     try {
       return this.peersMap.get(name).ip;
-    } catch (err){
+    } catch (err) {
       return null;
     }
   }

@@ -37,15 +37,17 @@ RUN yarn build
 
 # Copy the default Nginx configuration files
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/provider/provider.template.conf /etc/nginx/conf.d/provider.conf.template
-COPY nginx/requester/requester.template.conf /etc/nginx/conf.d/requester.conf.template
-COPY nginx/compute_ip.lua /etc/nginx/lua/compute_ip.lua
-COPY nginx/route.lua /etc/nginx/lua/route.lua
-COPY nginx/config.lua /etc/nginx/lua/config.lua
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy the HTML for the provider and requester
+# provider code
+COPY nginx/provider/provider.template.conf /etc/nginx/conf.d/provider.conf.template
+COPY nginx/provider/compute_ip.lua /etc/nginx/lua/compute_ip.lua
+COPY nginx/provider/config.lua /etc/nginx/lua/config.lua
 COPY nginx/provider/root/ /usr/share/nginx/html-provider/
+
+# requester code
+COPY nginx/requester/requester.template.conf /etc/nginx/conf.d/requester.conf.template
+COPY nginx/requester/route.lua /etc/nginx/lua/route.lua
 COPY nginx/requester/root/ /usr/share/nginx/html-requester/
 
 # Entrypoint script to run Certbot and start Nginx

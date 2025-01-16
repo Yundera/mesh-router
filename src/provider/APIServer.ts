@@ -6,30 +6,32 @@ import cors from 'cors';
 import axios from 'axios';
 import {VPNManager} from './VPNManager.js';
 import {registerRecvDTO, registerSendDTO, verifyRecvDTO} from '../common/dto.js';
-import {config} from '../common/EnvConfig.js';
 
 export class ApiServer {
     private vpnManager: VPNManager;
 
-    constructor(vpnManager: VPNManager) {
+    constructor(vpnManager: VPNManager,private config:{
+        authApiUrl?: string,
+        providerAnnonceDomain?: string
+    }) {
         this.vpnManager = vpnManager;
     }
 
     async registerPeer(data: registerSendDTO): Promise<registerRecvDTO> {
 
         let serverData: verifyRecvDTO;
-        if (config.AUTH_API_URL) {
-            const verifyRet = await axios.get<verifyRecvDTO>(`${config.AUTH_API_URL}/${data.userId}/${data.authToken}`);
+        if (this.config.authApiUrl) {
+            const verifyRet = await axios.get<verifyRecvDTO>(`${this.config.authApiUrl}/${data.userId}/${data.authToken}`);
             serverData = verifyRet.data;
         } else {
             serverData = {
-                serverDomain: config.PROVIDER_ANNONCE_DOMAIN,
+                serverDomain: this.config.providerAnnonceDomain,
                 domainName: 'test',
             };
         }
         if (!serverData.serverDomain || !serverData.domainName) {
-            if (config.AUTH_API_URL) {
-                console.error(`Url => ${config.AUTH_API_URL}/${data.userId}/${data.authToken}`);
+            if (this.config.authApiUrl) {
+                console.error(`Url => ${this.config.authApiUrl}/${data.userId}/${data.authToken}`);
             }
             console.error(serverData);
             throw new Error('Invalid Signature');
@@ -45,8 +47,8 @@ export class ApiServer {
         };
     }
 
-    async startProvider(announcedDomain: string) {
-        console.log(`Starting provider for ${announcedDomain}`);
+    async startProvider(config:{announcedDomain: string}) {
+        console.log(`Starting provider for ${config.announcedDomain}`);
         os.setPriority(os.constants.priority.PRIORITY_LOW);
         EventEmitter.defaultMaxListeners = 2000; // Or any number that suits your application's needs
 
@@ -66,13 +68,13 @@ export class ApiServer {
             try {
                 let host = req.params.host;
                 host = host.replaceAll("-", ".") //all dash are consiered as dots
-                if (!host.endsWith(announcedDomain)) {
+                if (!host.endsWith(config.announcedDomain)) {
                     res.status(404).send('Invalid domain');
                     return;
                 }
 
                 //remove the . + announced domain
-                const subDomain = host.substring(0, host.length - announcedDomain.length - 1);
+                const subDomain = host.substring(0, host.length - config.announcedDomain.length - 1);
                 // takes the right most part of the domain eg aa.bb.cc => cc
                 const parts = subDomain.split('.');
                 const name = parts[parts.length - 1];

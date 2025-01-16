@@ -28,7 +28,7 @@ interface EnvConfig {
  */
 export const config: EnvConfig = {
     AUTH_API_URL: process.env.AUTH_API_URL!,
-    VPN_PORT: process.env.VPN_PORT || '51820',
+    VPN_PORT: process.env.VPN_PORT,
     VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,
     PROVIDER_ANNONCE_DOMAIN: process.env.PROVIDER_ANNONCE_DOMAIN!,
     SERVER_WG_PUBLIC_KEY: process.env.SERVER_WG_PUBLIC_KEY!,

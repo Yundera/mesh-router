@@ -2,14 +2,18 @@ import axios from "axios";
 import {generateKeyPair, WgConfig} from "wireguard-tools";
 import {registerRecvDTO, registerSendDTO} from "../common/dto.js";
 import * as fs from 'fs/promises';
-import {config} from "../common/EnvConfig.js";
 
 import { exec as execCallback } from 'child_process';
 import { promisify } from 'util';
 
 const exec = promisify(execCallback);
 
-export async function startRequester(providerString: string) {
+//TODO: make the wg0 configurable (use domain name)
+// in provider allow to specify the ip range so we have different subnets (like 16 for nsl.sh - reserved and other number for other providers)
+// test ipv6?
+// ad an api that watch the config file and add and remove config based on the file
+
+export async function startRequester(providerString: string,default_host:string,default_host_port:string) {
   try {
     // providerString := "http://provider:port,<userid (optional)>,<signature (optional)>"
     const [providerURL, userId = '', signature = ''] = providerString.split(',');
@@ -28,8 +32,8 @@ export async function startRequester(providerString: string) {
       // Ensure the directory exists
       await fs.mkdir('/var/run/meta', { recursive: true });
       await fs.writeFile('/var/run/meta/domain', result.serverDomain);
-      await fs.writeFile('/var/run/meta/default_host', config.DEFAULT_HOST);
-      await fs.writeFile('/var/run/meta/default_host_port', config.DEFAULT_HOST_PORT);
+      await fs.writeFile('/var/run/meta/default_host', default_host);
+      await fs.writeFile('/var/run/meta/default_host_port', default_host_port);
       console.log(`Domain ${result.domainName}.${result.serverDomain} config saved successfully`);
     } catch (err) {
       console.error('Error writing domain to file:', err);

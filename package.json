@@ -23,6 +23,7 @@
     "dotenv": "16.4.5",
     "express": "4.19.2",
     "fs-extra": "11.2.0",
+    "js-yaml": "^4.1.0",
     "libsodium-wrappers": "^0.7.15",
     "multiformats": "^13.2.2",
     "netmask": "^2.0.2",

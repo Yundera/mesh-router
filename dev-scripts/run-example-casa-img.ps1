@@ -1,21 +1,8 @@
 # Define variables
-$imageName = "casa-os"
+$imageName = "nasselle/casa-img"
 $containerName = "casa-os-dev"
-$dockerfilePath = "../.."
-$originalPath = Get-Location
-
-# Change to the Dockerfile directory
-Push-Location $dockerfilePath
 
 try {
-    # Build the Docker image
-    Write-Host "Building the Docker image..."
-    docker build -t $imageName .
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker build failed. Exiting."
-    }
-
     # Check if a container with the same name is already running
     Write-Host "Checking for existing container..."
     $existingContainer = docker ps -aq --filter "name=$containerName"
@@ -43,7 +30,7 @@ try {
     -e REF_PORT=80 `
     -e REF_DOMAIN=test.localhost `
     -e DATA_ROOT=/c/DATA `
-    --label mesh.default.port=8080 ` #TODO implement this feature
+    --label mesh.default.port=8080 `
     -v C:\DATA:/DATA `
     -v /var/run/docker.sock:/var/run/docker.sock `
     --name $containerName $imageName
