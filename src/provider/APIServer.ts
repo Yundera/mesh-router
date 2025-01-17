@@ -28,7 +28,7 @@ export class ApiServer {
         } else {
             serverData = {
                 serverDomain: this.config.announcedDomain,
-                domainName: 'test',
+                domainName: data.userId,
             };
         }
         if (!serverData.serverDomain || !serverData.domainName) {
@@ -44,6 +44,7 @@ export class ApiServer {
 
         return {
             wgConfig: wgconfig,
+            serverIp: this.vpnManager.getServerIp(),
             serverDomain: serverData.serverDomain,
             domainName: serverData.domainName,
         };
@@ -69,7 +70,7 @@ export class ApiServer {
         app.get('/api/get_ip/:host', async (req, res) => {
             try {
                 let host = req.params.host;
-                host = host.replaceAll("-", ".") //all dash are consiered as dots
+                host = host.replaceAll("-", ".") //all dash are considered as dots
                 if (!host.endsWith(this.config.announcedDomain)) {
                     res.status(404).send('Invalid domain');
                     return;

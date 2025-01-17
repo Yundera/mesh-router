@@ -1,0 +1,9 @@
+providers:
+  - provider: http://dprovider,dev
+    defaultService: casaos
+  - provider: http://dprovider2,dev
+    defaultService: casaos
+
+services:
+  casaos:
+    defaultPort: '8080'

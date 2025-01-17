@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 interface EnvConfig {
+
+    /** [provider] IP range for VPN */
+    VPN_IP_RANGE: string;
     /** [provider] API used to verify if the user have righs to register on this server */
     AUTH_API_URL: string;
     /** [provider] Port for VPN */
@@ -27,6 +30,7 @@ interface EnvConfig {
  * Load environment variables into the config object
  */
 export const config: EnvConfig = {
+    VPN_IP_RANGE: process.env.VPN_IP_RANGE!,
     AUTH_API_URL: process.env.AUTH_API_URL!,
     VPN_PORT: process.env.VPN_PORT,
     VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,

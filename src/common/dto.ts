@@ -8,6 +8,7 @@ export interface registerSendDTO {
 
 export interface registerRecvDTO {
   wgConfig: Partial<WgConfigObject> & { filePath?: string; };
+  serverIp: string;
   serverDomain: string;
   domainName: string;
 }

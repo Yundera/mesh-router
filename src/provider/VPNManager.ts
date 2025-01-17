@@ -63,13 +63,15 @@ export class VPNManager {
     }
 
     this.vpnPort = config.VPNPort || '51820';
-    this.ipRange = config.VPNIpRange || '10.16.0.0/16';
+    this.ipRange = config.VPNIpRange || '1.0.0.0/24';
     this.vpnEndpointAnnounce = `${(config.VPNEndPointAnnounce || config.announcedDomain)}:${this.vpnPort}`;
 
     // Reserve default IPs
-    this.serverIp = this.ipRange.replace(/\.0\/\d+$/, '.1');
     this.ipManager = new IpManager(this.ipRange);
+    this.serverIp = this.ipRange.replace(/\.0\/\d+$/, '.1');
     this.ipManager.leaseIp(this.serverIp); // host
+    const zero = this.ipRange.replace(/\.0\/\d+$/, '.0');
+    this.ipManager.leaseIp(zero); // reserved
 
     console.log(`PROVIDER_ANNONCE_DOMAIN is set to '${config.announcedDomain}'`);
 
@@ -269,5 +271,10 @@ PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | gre
     } catch (err) {
       return null;
     }
+  }
+
+  // Get the server IP eg 10.16.0.1
+  getServerIp():string {
+    return this.serverIp;
   }
 }

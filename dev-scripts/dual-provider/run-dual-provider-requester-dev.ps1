@@ -4,5 +4,6 @@ cd $scriptPath
 
 # Run the provider and requester dev scripts
 & ".\run-provider-test.localhost.ps1"
-& ".\run-requester-dev.ps1"
+& ".\run-provider-test2.localhost-8080.ps1"
+& ".\run-dual-requester-dev.ps1"
 & ".\run-example-casa-img.ps1"

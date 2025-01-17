@@ -2,11 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { EventEmitter } from 'events';
+import * as chokidar from 'chokidar';
 
 export class ConfigService<T> extends EventEmitter {
   private configPath: string;
   private config: T;
-  private watcher: fs.FSWatcher | null = null;
+  private watcher: chokidar.FSWatcher | null = null;
   private isInternalUpdate: boolean = false;
 
   public constructor(
@@ -15,11 +16,9 @@ export class ConfigService<T> extends EventEmitter {
   ) {
     super();
     this.configPath = configPath;
-    /*this.config = this.loadConfig();
-    this.watchConfig();*/
   }
 
-  public ensureDefaultConfig(defaultConfig:T): void {
+  public ensureDefaultConfig(defaultConfig: T): void {
     if (!fs.existsSync(this.configPath)) {
       try {
         // Create directory if it doesn't exist
@@ -55,9 +54,24 @@ export class ConfigService<T> extends EventEmitter {
   }
 
   public watchConfig(): void {
-    this.config = this.loadConfig();//initial config load
-    this.watcher = fs.watch(this.configPath, (eventType) => {
-      if (eventType === 'change' && !this.isInternalUpdate) {
+    this.config = this.loadConfig(); // initial config load
+
+    // Initialize chokidar watcher with appropriate options
+    this.watcher = chokidar.watch(this.configPath, {
+      persistent: true,
+      ignoreInitial: true,
+      usePolling: true,  // Enable polling
+      interval: 10000,    // Polling interval in milliseconds
+      awaitWriteFinish: {
+        stabilityThreshold: 100,
+        pollInterval: 100
+      }
+    });
+
+    // Handle change events
+    this.watcher.on('change', () => {
+      console.log('Config file changed');
+      if (!this.isInternalUpdate) {
         try {
           const newConfig = this.loadConfig();
           this.config = newConfig;
@@ -66,6 +80,11 @@ export class ConfigService<T> extends EventEmitter {
           this.emit('configError', error);
         }
       }
+    });
+
+    // Handle watcher errors
+    this.watcher.on('error', (error) => {
+      this.emit('watcherError', error);
     });
   }
 
@@ -89,7 +108,7 @@ export class ConfigService<T> extends EventEmitter {
       this.config = newConfig;
       this.emit('configUpdated', newConfig);
 
-      // Reset the flag after a short delay to ensure the file write event has been processed
+      // Reset the flag after a short delay
       setTimeout(() => {
         this.isInternalUpdate = false;
       }, 100);

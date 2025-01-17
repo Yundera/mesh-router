@@ -1,13 +1,9 @@
-import {startRequester} from "./requester/Requester.js";
+import {updateRequestersFromConfig} from "./requester/Requester.js";
 import {startProvider} from "./provider/Provider.js";
 import {config} from "./common/EnvConfig.js";
 import {RequesterConfig} from "./requester/RequesterConfig.js";
 import { promises as fs } from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { spawn } from 'child_process';
-const execAsync = promisify(exec);
 
 
 async function setupNginxConfig(): Promise<void> {
@@ -44,34 +40,30 @@ async function setupNginxConfig(): Promise<void> {
       authApiUrl: config.AUTH_API_URL,
       VPNPort: config.VPN_PORT,
       VPNEndPointAnnounce: config.VPN_ENDPOINT_ANNOUNCE,
-      VPNIpRange:'10.16.0.0/16',
+      VPNIpRange:config.VPN_IP_RANGE,
     });
 
   } else {
 
     const rconfig = RequesterConfig.getInstance();
+    // will create the file if it doesn't exist based on the env if a config file is already present the env will be ignored
     rconfig.ensureDefaultConfig({
-      provider: config.PROVIDER,
-      defaultHost: config.DEFAULT_HOST,
-      defaultHostPort: config.DEFAULT_HOST_PORT
-    });// will create the file if it doesn't exist based on the env if a config file is already present the env will be ignored
-    rconfig.watchConfig();// will watch the file for changes
-    rconfig.on('configUpdated', (newConfig) => {
-      console.log('Config updated:', newConfig);
-      //TODO: update the requester
+      providers: [{
+        provider: config.PROVIDER,
+        defaultService: config.DEFAULT_HOST,
+      }],
+      services: {
+        [config.DEFAULT_HOST]: {
+          defaultPort: config.DEFAULT_HOST_PORT,
+        },
+      },
     });
-
-    if (rconfig.getConfig().provider) {
-      //connect to a provider
-      await startRequester(
-        rconfig.getConfig().provider,
-        rconfig.getConfig().defaultHost,
-        rconfig.getConfig().defaultHostPort
-      )
-
-    } else {
-      throw new Error('No mode specified');
-    }
+    rconfig.watchConfig();// will watch the file for changes
+    rconfig.on('configUpdated', async (newConfig) => {
+      console.log('Config updated:', newConfig);
+      await updateRequestersFromConfig(rconfig.getConfig());
+    });
+    await updateRequestersFromConfig(rconfig.getConfig());
   }
 
 })().catch(console.error);
