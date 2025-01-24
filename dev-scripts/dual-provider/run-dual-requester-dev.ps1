@@ -38,7 +38,7 @@ try {
     -e PROVIDER="http://dprovider2,dev" `
     -e DEFAULT_HOST="casaos" `
     -e DEFAULT_HOST_PORT="8080" `
-    -v "${originalPath}/config-dual.yml:/app/dist/config.yml" `
+    -v "${originalPath}/config-dual.yml:/app/config/config.yml" `
     --network meta `
     --network provider `
     --name $containerName $imageName

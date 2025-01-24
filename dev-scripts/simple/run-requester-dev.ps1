@@ -1,7 +1,7 @@
 # Define variables
 $imageName = "mesh-router"
-$containerName = "mesh-router-nsl.sh"
-$dockerfilePath = ".."
+$containerName = "mesh-router-localhost"
+$dockerfilePath = "../.."
 $originalPath = Get-Location
 
 # Change to the Dockerfile directory
@@ -35,10 +35,11 @@ try {
     #provider network is used locally so we can get an host name to resolve from inside the container (in prod it will just be the domain)
     docker run -d `
     --cap-add NET_ADMIN `
-    -e PROVIDER="https://nsl.sh,xxx,xxx" `
+    -e PROVIDER="http://dprovider,dev" `
     -e DEFAULT_HOST="casaos" `
     -e DEFAULT_HOST_PORT="8080" `
     --network meta `
+    --network provider `
     --name $containerName $imageName
 
     if ($LASTEXITCODE -ne 0) {

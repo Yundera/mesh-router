@@ -122,25 +122,37 @@ export class VPNManager {
       if (stats.size > 0) {
         console.log('WireGuard configuration already exists and is not empty.');
         return;
+      }else{
+        console.log('WireGuard configuration already exists but is empty.');
+        throw new Error();
       }
     } catch {
       // Config doesn't exist or is empty, create it
       console.log('Creating WireGuard configuration...');
 
-      const config = `[Interface]
+      const config = `
+[Interface]
 Address = ${this.serverIp}/${this.ipRange.split('/')[1]}
 SaveConfig = true
 ListenPort = ${this.vpnPort}
 PrivateKey = ${this.serverPrivateKey}
 
 PostUp = iptables -t nat -A POSTROUTING -s ${this.ipRange} -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport ${this.vpnPort} -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT;
-PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport ${this.vpnPort} -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;`;
+PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport ${this.vpnPort} -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT;
+
+# Peers list
+`;
 
       await fs.writeFile(this.WG_CONFIG_PATH, config);
     }
   }
 
   private async startWireGuard(): Promise<void> {
+    try {
+      await execAsync('wg-quick down wg0');
+    } catch (err) {
+      /* Ignore error */
+    }
     await execAsync('wg-quick up wg0');
   }
 
@@ -260,7 +272,7 @@ PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | gre
           publicKey: this.serverPublicKey,
           allowedIps: [this.ipRange],
           endpoint: this.vpnEndpointAnnounce,
-          persistentKeepalive: 25,
+          persistentKeepalive: 60,
         }]
     };
   }

@@ -11,6 +11,7 @@ export interface registerRecvDTO {
   serverIp: string;
   serverDomain: string;
   domainName: string;
+  domain: string;
 }
 
 export interface verifyRecvDTO {

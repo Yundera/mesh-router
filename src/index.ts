@@ -2,37 +2,11 @@ import {updateRequestersFromConfig} from "./requester/Requester.js";
 import {startProvider} from "./provider/Provider.js";
 import {config} from "./common/EnvConfig.js";
 import {RequesterConfig} from "./requester/RequesterConfig.js";
-import { promises as fs } from 'fs';
-import path from 'path';
 
-
-async function setupNginxConfig(): Promise<void> {
-  try {
-    if (process.env.PROVIDER_ANNONCE_DOMAIN) {
-    }
-
-    if (process.env.PROVIDER) {
-      await fs.copyFile(
-        path.join(this.NGINX_CONF_DIR, 'requester.conf.template'),
-        path.join(this.NGINX_CONF_DIR, 'requester.conf')
-      );
-      console.log('Requester configuration activated');
-    }
-  } catch (error) {
-    console.error('Error setting up nginx configuration:', error);
-    throw error;
-  }
-}
-
-//TODO
-// 0 - read the env and update the yml file
-// 1 - read the file and apply config
-//        - link the yaml config to the current system
-//        - call an api function for each relevant function
-//  2 - test with multi provider
-//       - implement mutli provider system
 
 (async () => {
+  console.log(`version ${process.env.BUILD_VERSION}`);
+
   if (config.PROVIDER_ANNONCE_DOMAIN) {
     //start a provider
     await startProvider({

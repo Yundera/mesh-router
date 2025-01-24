@@ -57,7 +57,7 @@ export class RequesterConfig extends ConfigService<Config> {
   private static instance: RequesterConfig;
 
   private constructor() {
-    super('./config.yml', configValidator);
+    super('../config/config.yml', configValidator);
   }
 
   public static getInstance(): RequesterConfig {

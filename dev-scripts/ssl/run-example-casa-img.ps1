@@ -1,21 +1,8 @@
 # Define variables
-$imageName = "mesh-router"
-$containerName = "mesh-router-nsl.sh"
-$dockerfilePath = ".."
-$originalPath = Get-Location
-
-# Change to the Dockerfile directory
-Push-Location $dockerfilePath
+$imageName = "nasselle/casa-img"
+$containerName = "casa-os-dev"
 
 try {
-    # Build the Docker image
-    Write-Host "Building the Docker image..."
-    docker build -t $imageName .
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker build failed. Exiting."
-    }
-
     # Check if a container with the same name is already running
     Write-Host "Checking for existing container..."
     $existingContainer = docker ps -aq --filter "name=$containerName"
@@ -32,15 +19,22 @@ try {
 
     # Run the Docker container
     Write-Host "Running the Docker container..."
-    #provider network is used locally so we can get an host name to resolve from inside the container (in prod it will just be the domain)
+    # DATA_ROOT must be in linux style path so we need to convert C:\DATA to c/DATA
+    # you need to create a network for it to work docker network create meta
     docker run -d `
-    --cap-add NET_ADMIN `
-    -e PROVIDER="https://nsl.sh,xxx,xxx" `
-    -e DEFAULT_HOST="casaos" `
-    -e DEFAULT_HOST_PORT="8080" `
+    -p 12380:8080 `
+    --expose 8080 `
     --network meta `
+    --hostname casaos `
+    -e REF_NET=meta `
+    -e REF_PORT=80 `
+    -e REF_DOMAIN=test.localhost `
+    -e DATA_ROOT=/c/DATA `
+    --label mesh.default.port=8080 `
+    -v C:\DATA:/DATA `
+    -v /var/run/docker.sock:/var/run/docker.sock `
     --name $containerName $imageName
-
+    #C:\Users\<YourUsername>\AppData\Local\Docker\wsl\data
     if ($LASTEXITCODE -ne 0) {
         throw "Docker run failed. Exiting."
     }

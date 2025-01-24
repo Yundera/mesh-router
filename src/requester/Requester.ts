@@ -1,56 +1,57 @@
-import axios from "axios";
-import { generateKeyPair, WgConfig } from "wireguard-tools";
-import { registerRecvDTO, registerSendDTO } from "../common/dto.js";
+import {generateKeyPair, WgConfig} from "wireguard-tools";
+import {registerRecvDTO} from "../common/dto.js";
 import * as fs from 'fs/promises';
-import { exec as execCallback } from 'child_process';
-import { promisify } from 'util';
-import { Config } from "./RequesterConfig.js";
+import {exec as execCallback} from 'child_process';
+import {promisify} from 'util';
+import {Config} from "./RequesterConfig.js";
+import {HandshakesWatcher} from './HandshakesWatcher.js';
+import {readDomainConfig, writeDomainConfig, writeMetadataFiles} from "./WriteMeta.js";
+import {getConfigPath} from "./WireGuard.js";
+import {ProviderTools, registerProvider, waitForProvider} from "./ProviderTools.js";
 
 const exec = promisify(execCallback);
 
+
+// Configuration for retry mechanism
+const RETRY_INTERVAL_SECONDS = 10 * 60 * 60; // 10 minutes
+
 // Track currently active providers
 let activeProviders = new Set<string>();
+let currentConfig: Config = { providers: [] };
 
-// Function to read existing domain configuration
-async function readDomainConfig(): Promise<any> {
-  try {
-    const configPath = '/var/run/meta/config.json';
-    const content = await fs.readFile(configPath, 'utf8');
-    return JSON.parse(content);
-  } catch (err) {
-    // If file doesn't exist or is invalid, return empty object
-    return {};
+// Initialize the HandshakesWatcher with callbacks
+const watcher = HandshakesWatcher.getInstance();
+watcher.setRestartCallback(async (provider:string) => {
+  for (const providerElement of currentConfig.providers) {
+    if(providerElement.provider === provider){
+      await stopRequester(providerElement.provider);
+      await startRequester(providerElement);
+    }
   }
-}
+});
 
-// Function to write domain configuration
-async function writeDomainConfig(config: any): Promise<void> {
-  const folder = '/var/run/meta';
-  await fs.mkdir(folder, { recursive: true });
-  await fs.writeFile(`${folder}/config.json`, JSON.stringify(config, null, 2), 'utf8');
-}
+// Add these event listeners if you want to log important events
+watcher.on('error', ({ provider, error }) => {
+  console.error(`HandshakesWatcher error${provider ? ` for ${provider}` : ''}:`, error);
+});
+
+watcher.on('connectionRestarted', (provider) => {
+  console.error(`ERROR CONNECTION RESTARTED for ${provider}`);
+});
 
 export async function updateRequestersFromConfig(config: Config) {
+  currentConfig = config;
   const newProviders = new Set(config.providers.map(p => p.provider));
 
   // Write metadata files
-  try {
-    const folder = '/var/run/meta';
-    await fs.mkdir(folder, { recursive: true });
-
-    // Write the JSON files for services
-    for (const serviceName in config.services) {
-      await fs.writeFile(`${folder}/${serviceName}.json`, JSON.stringify(config.services[serviceName], null, 2), 'utf8');
-    }
-  } catch (err) {
-    console.error('Error writing metadata files:', err);
-  }
+  await writeMetadataFiles(config);
 
   // Stop providers that are not in the new config
   for (const activeProvider of activeProviders) {
     if (!newProviders.has(activeProvider)) {
       await stopRequester(activeProvider);
       activeProviders.delete(activeProvider);
+      watcher.removeProvider(activeProvider);
     }
   }
 
@@ -59,13 +60,26 @@ export async function updateRequestersFromConfig(config: Config) {
     if (!activeProviders.has(provider.provider)) {
       await startRequester(provider);
       activeProviders.add(provider.provider);
+
+      const [providerURL] = provider.provider.split(',');
+      watcher.addProvider(provider.provider, {
+        filePath: await getConfigPath(providerURL)
+      });
     }
+  }
+
+  // Start watching if there are any active providers
+  if (activeProviders.size > 0) {
+    watcher.startWatching();
+  } else {
+    watcher.stopWatching();
   }
 }
 
 async function stopRequester(providerString: string) {
   try {
     const [providerURL] = providerString.split(',');
+    console.log(`Stopping requester for ${providerURL}`);
     const configPath = await getConfigPath(providerURL);
 
     // Bring down the interface if it exists
@@ -89,43 +103,23 @@ async function stopRequester(providerString: string) {
   }
 }
 
-async function getConfigPath(providerString: string): Promise<string> {
-  const providerURL = providerString.split(',')[0];
-  let identifier = providerURL
-  .replace(/^https?:\/\//, '')
-  .replace(/[^a-zA-Z0-9]/g, '')
-  .toLowerCase();
+async function startRequester(provider:ProviderTools) {
 
-  if (!/^[a-z]/i.test(identifier)) {
-    identifier = 'wg' + identifier;
-  }
-
-  identifier = identifier.slice(0, 13);
-
-  if (/\d$/.test(identifier)) {
-    identifier += 'x';
-  }
-
-  return `/etc/wireguard/wg_${identifier}.conf`;
-}
-
-async function startRequester(provider:{
-  provider: string;
-  defaultService?: string;
-}) {
   try {
     const [providerURL, userId = '', signature = ''] = provider.provider.split(',');
-    const wgKeys = await generateKeyPair();
+    console.log(`Starting requester for ${providerURL}`);
+    // Wait for provider to become available
+    await waitForProvider(providerURL, RETRY_INTERVAL_SECONDS);
 
-    const dta: registerSendDTO = {
+    const wgKeys = await generateKeyPair();
+    console.log(`Generated WireGuard key pair for ${providerURL}`);
+    const result: registerRecvDTO = await registerProvider(providerURL, {
       userId: userId,
       vpnPublicKey: wgKeys.publicKey,
       authToken: signature,
-    };
+    });
 
-    const result: registerRecvDTO = (await axios.post(`${providerURL}/api/register`, dta)).data;
-    console.log("VPN configuration:", result.wgConfig);
-    console.log(`Root Domain: ${result.domainName}.${result.serverDomain}`);
+    console.log("Received configuration:", JSON.stringify(result));
 
     // Update domain configuration
     try {
@@ -133,14 +127,19 @@ async function startRequester(provider:{
       const domainConfig = await readDomainConfig();
 
       // Update configuration with new domain
-      const fullDomain = `${result.domainName}.${result.serverDomain}`;
-      domainConfig[fullDomain] = {
+      domainConfig.domain = domainConfig.domain || [];
+      domainConfig.domain.push(result.domain);
+      domainConfig.domain = Array.from(new Set(domainConfig.domain));
+      //sort domain by longest string first
+      domainConfig.domain.sort((a, b) => b.length - a.length);
+      domainConfig.config = domainConfig.config || {};
+      domainConfig.config[result.domain] = {
         defaultService: provider.defaultService,
       };
 
       // Write updated configuration
       await writeDomainConfig(domainConfig);
-      console.log(`Domain ${fullDomain} added to configuration successfully`);
+      console.log(`Domain ${result.domain} added to configuration successfully`);
     } catch (err) {
       console.error('Error updating domain configuration:', err);
     }
@@ -157,13 +156,14 @@ async function startRequester(provider:{
 
     // Test connection
     try {
-      const { stdout, stderr } = await exec(`ping -c 4 ${result.serverIp}`);
+      const { stdout, stderr } = await exec(`ping -c 1 ${result.serverIp}`);
       if (stderr) {
         console.error(`Ping stderr: ${stderr}`);
       } else {
         console.log(`Ping stdout: ${stdout}`);
       }
     } catch (error) {
+      console.error(result);
       console.error(`Error executing ping: ${error.message}`);
     }
   } catch (err) {

@@ -12,6 +12,8 @@ export interface ApiServerConfig {
     announcedDomain: string,
 }
 
+const ROOT_DOMAIN = "$root$";
+
 export class ApiServer {
     private vpnManager: VPNManager;
 
@@ -28,7 +30,7 @@ export class ApiServer {
         } else {
             serverData = {
                 serverDomain: this.config.announcedDomain,
-                domainName: data.userId,
+                domainName: data.userId || ROOT_DOMAIN,
             };
         }
         if (!serverData.serverDomain || !serverData.domainName) {
@@ -42,11 +44,19 @@ export class ApiServer {
         // Add the peer to WireGuard
         const wgconfig = this.vpnManager.registerPeer(data.vpnPublicKey, serverData.domainName);
 
+        let domain;
+        if(serverData.domainName === ROOT_DOMAIN) {
+            domain = serverData.serverDomain;
+        }else {
+            domain = `${serverData.domainName}.${serverData.serverDomain}`;
+        }
+
         return {
             wgConfig: wgconfig,
             serverIp: this.vpnManager.getServerIp(),
             serverDomain: serverData.serverDomain,
             domainName: serverData.domainName,
+            domain: domain,
         };
     }
 
@@ -64,29 +74,32 @@ export class ApiServer {
         app.use(express.static('/usr/share/nginx/html-provider/'));
 
         app.get('/api/ping', async (req, res) => {
-            res.send('pong');
+            res.send('ok');
         });
 
         app.get('/api/get_ip/:host', async (req, res) => {
             try {
-                let host = req.params.host;
-                host = host.replaceAll("-", ".") //all dash are considered as dots
+                const host = req.params.host.replaceAll("-", "."); //all dash are considered as dots
                 if (!host.endsWith(this.config.announcedDomain)) {
                     res.status(404).send('Invalid domain');
                     return;
                 }
 
                 //remove the . + announced domain
-                const subDomain = host.substring(0, host.length - this.config.announcedDomain.length - 1);
+                const subdomain = host.slice(0, -(this.config.announcedDomain.length + 1));
                 // takes the right most part of the domain eg aa.bb.cc => cc
-                const parts = subDomain.split('.');
-                const name = parts[parts.length - 1];
+                const name = subdomain ? subdomain.split('.').pop() : null;
 
                 if (!name) {
                     //if no name it means it is the root domain and or the API server (this server)
-                    console.log(`name not found for ${host}`);
-                    res.send('http://127.0.0.1:3000');
-                    return;
+                    const rootIp = this.vpnManager.getIpFromName(ROOT_DOMAIN);
+                    if (rootIp) {
+                        console.log(`found ip for ${ROOT_DOMAIN}: ${rootIp}`);
+                        return res.send(`http://${rootIp}:80`);
+                    } else {
+                        console.log(`name not found for ${host}`);
+                        return res.send('http://127.0.0.1:3000');
+                    }
                 }
 
                 //will be directly used by nginx to proxy the request
@@ -95,7 +108,7 @@ export class ApiServer {
                     res.status(404).send('IP not found');
                     return;
                 }
-                console.log(`found ip for ${name} (${subDomain}): ${ip}`)
+                console.log(`found ip for ${name} (${subdomain}): ${ip}`)
                 const ret = `http://${ip}:80`
                 res.send(ret);
             } catch (err) {

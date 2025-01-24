@@ -41,6 +41,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 
 # provider code
 COPY nginx/provider/provider.template.conf /etc/nginx/conf.d/provider.conf.template
+COPY nginx/provider/provider.ssl.template.conf /etc/nginx/conf.d/provider.ssl.conf.template
 COPY nginx/provider/compute_ip.lua /etc/nginx/lua/compute_ip.lua
 COPY nginx/provider/config.lua /etc/nginx/lua/config.lua
 COPY nginx/provider/root/ /usr/share/nginx/html-provider/
@@ -53,5 +54,9 @@ COPY nginx/requester/root/ /usr/share/nginx/html-requester/
 # Entrypoint script to run Certbot and start Nginx
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Declare the build argument
+ARG BUILD_VERSION
+ENV BUILD_VERSION=${BUILD_VERSION}
 
 ENTRYPOINT ["/entrypoint.sh"]

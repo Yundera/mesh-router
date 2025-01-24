@@ -1,7 +1,20 @@
--- use that to test https://www.mycompiler.io/view/EqT3B2yvRtF
 local cjson = require("cjson.safe")
 
-local function extract_parts(ua, domain_configs)
+--[[
+    Extracts port and service information from a URL subdomain (hyphens and dots are interchangeable).
+
+    This function parses URLs in the following formats:
+    - with domain_root = dev.test.localhost
+    - http://dev.test.localhost/#/login (default service, default port)
+    - http://casaos-dev.test.localhost/#/login (casaos service, default port)
+    - http://8080-casaos-dev.test.localhost/#/login (custom port)
+
+    @param hostname string: The hostname to parse (e.g., "8080-casaos-dev.test.localhost")
+    @param domain_root string: The root domain to match against (e.g., "test.localhost")
+    @return port string|nil: The port number if found
+    @return service string|nil: The service name if found
+]]
+local function extract_parts(ua, domain_root)
     -- Replace hyphens with dots
     ua = ua:gsub("%-", ".")
 
@@ -11,28 +24,24 @@ local function extract_parts(ua, domain_configs)
         table.insert(parts, part)
     end
 
-    local domain, name, service, port
+    local domain, service, port
 
-    -- Identify the domain by checking against all configured domains
+    -- Identify the domain based on the domain_pattern
     for i = #parts, 1, -1 do
         local potential_domain = table.concat(parts, ".", i)
-        -- Check if this domain exists in our config
-        if domain_configs[potential_domain] then
+        if potential_domain:find(domain_root, 1, true) then
             domain = potential_domain
             if i > 1 then
-                name = parts[i - 1]
+                service = parts[i - 1]
             end
-            if i > 2 then
-                service = parts[i - 2]
-            end
-            if i > 3 and tonumber(parts[i - 3]) then
-                port = parts[i - 3]
+            if i > 2 and tonumber(parts[i - 2]) then
+                port = parts[i - 2]
             end
             break
         end
     end
 
-    return port, service, name, domain
+    return port, service
 end
 
 local function read_json_from_file(file_path)
@@ -62,31 +71,84 @@ local function get_service_default_port(service)
     return 80
 end
 
+local function does_host_match_domain(host, domain)
+    -- Convert host and domain to lowercase for case-insensitive comparison
+    host = host:lower()
+    domain = domain:lower()
+
+    -- Replace hyphens with dots in the host
+    host = host:gsub("%-", ".")
+
+    -- Check if the host ends with the domain
+    return host:sub(-#domain) == domain
+end
+
+--[[
+    Sets the backend URL based on the host and domain configuration.
+    Expected config.json structure:
+    {
+        "domain": [
+            "dev.test.localhost",
+            "other.domain"
+        ],
+        "config": {
+            "dev.test.localhost": {
+                "defaultService": "casaos"
+            },
+            "other.domain": {
+                "defaultService": "service2"
+            }
+        }
+    }
+]]
 local function set_backend()
     local host = ngx.var.host
-    local domain_configs = read_json_from_file("/var/run/meta/config.json")
-    if not domain_configs then
+
+    local domain_data = read_json_from_file("/var/run/meta/config.json")
+    if not domain_data then
         ngx.log(ngx.ERR, "Domain configs not found")
+        ngx.var.backend = "http://default:80"
+        return
     end
 
-    local port, service, name, domain = extract_parts(host, domain_configs)
+    -- Check if the data structure is valid
+    if not domain_data.domain or not domain_data.config then
+        ngx.log(ngx.ERR, "Invalid domain config structure")
+        ngx.var.backend = "http://default:80"
+        return
+    end
 
-    if not service then
-        -- If domain is found in config, use its default service
-        if domain and domain_configs[domain] then
-            service = domain_configs[domain].defaultService
-        else
-            -- Fallback to default service
-            service = "default"
+    local matched_domain = nil
+    local matched_config = nil
+
+    -- Loop through domain array using numeric index
+    for i = 1, #domain_data.domain do
+        local domain = domain_data.domain[i]
+        if does_host_match_domain(host, domain) then
+            matched_domain = domain
+            matched_config = domain_data.config[domain]
+            break
         end
     end
 
-    if not port then
-        -- Try to get default port from service config
-        port = get_service_default_port(service)
-    end
+    if matched_domain and matched_config then
+        local port, service = extract_parts(host, matched_domain)
 
-    ngx.var.backend = "http://" .. service .. ":" .. port
+        if not service then
+            -- Use default service from matched config
+            service = matched_config.defaultService
+        end
+
+        if not port then
+            -- Try to get default port from service config
+            port = get_service_default_port(service)
+        end
+
+        ngx.var.backend = "http://" .. service .. ":" .. port
+    else
+        -- No domain match found, use default service
+        ngx.var.backend = "http://default:80"
+    end
 end
 
 set_backend()
