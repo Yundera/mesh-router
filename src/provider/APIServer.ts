@@ -98,7 +98,8 @@ export class ApiServer {
                         return res.send(`http://${rootIp}:80`);
                     } else {
                         console.log(`name not found for ${host}`);
-                        return res.send('http://127.0.0.1:3000');
+                        res.status(404).send('Name not found');
+                        //in this case is will use the default host in the config server
                     }
                 }
 
