@@ -1,4 +1,4 @@
-import {generateKeyPair, WgConfig} from "wireguard-tools";
+import {WgConfig} from "wireguard-tools";
 import {registerRecvDTO} from "../common/dto.js";
 import * as fs from 'fs/promises';
 import {exec as execCallback} from 'child_process';
@@ -8,12 +8,13 @@ import {HandshakesWatcher} from './HandshakesWatcher.js';
 import {readDomainConfig, writeDomainConfig, writeMetadataFiles} from "./WriteMeta.js";
 import {getConfigPath} from "./WireGuard.js";
 import {ProviderTools, registerProvider, waitForProvider} from "./ProviderTools.js";
+import {getOrGenerateKeyPair} from "./KeyPair.js";
 
 const exec = promisify(execCallback);
 
 
 // Configuration for retry mechanism
-const RETRY_INTERVAL_SECONDS = 10 * 60 * 60; // 10 minutes
+const RETRY_INTERVAL_SECONDS = 10 * 60; // 10 minutes
 
 // Track currently active providers
 let activeProviders = new Set<string>();
@@ -22,6 +23,7 @@ let currentConfig: Config = { providers: [] };
 // Initialize the HandshakesWatcher with callbacks
 const watcher = HandshakesWatcher.getInstance();
 watcher.setRestartCallback(async (provider:string) => {
+  console.error(`ERROR CONNECTION RESTARTED for ${provider}`);
   for (const providerElement of currentConfig.providers) {
     if(providerElement.provider === provider){
       await stopRequester(providerElement.provider);
@@ -33,10 +35,6 @@ watcher.setRestartCallback(async (provider:string) => {
 // Add these event listeners if you want to log important events
 watcher.on('error', ({ provider, error }) => {
   console.error(`HandshakesWatcher error${provider ? ` for ${provider}` : ''}:`, error);
-});
-
-watcher.on('connectionRestarted', (provider) => {
-  console.error(`ERROR CONNECTION RESTARTED for ${provider}`);
 });
 
 export async function updateRequestersFromConfig(config: Config) {
@@ -111,15 +109,16 @@ async function startRequester(provider:ProviderTools) {
     // Wait for provider to become available
     await waitForProvider(providerURL, RETRY_INTERVAL_SECONDS);
 
-    const wgKeys = await generateKeyPair();
-    console.log(`Generated WireGuard key pair for ${providerURL}`);
+    // Get existing key pair or generate new one
+    const wgKeys = await getOrGenerateKeyPair(providerURL);
+
     const result: registerRecvDTO = await registerProvider(providerURL, {
       userId: userId,
       vpnPublicKey: wgKeys.publicKey,
       authToken: signature,
     });
 
-    console.log("Received configuration:", JSON.stringify(result));
+    console.log("Received configuration:", JSON.stringify(result,null,2));
 
     // Update domain configuration
     try {

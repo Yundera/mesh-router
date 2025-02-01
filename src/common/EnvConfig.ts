@@ -13,8 +13,6 @@ interface EnvConfig {
     VPN_ENDPOINT_ANNOUNCE: string;
     /** [provider] Provider announcement domain */
     PROVIDER_ANNONCE_DOMAIN: string;
-    /** [provider] Server WireGuard public key */
-    SERVER_WG_PUBLIC_KEY: string;
 
     /** **/
 
@@ -35,7 +33,6 @@ export const config: EnvConfig = {
     VPN_PORT: process.env.VPN_PORT,
     VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,
     PROVIDER_ANNONCE_DOMAIN: process.env.PROVIDER_ANNONCE_DOMAIN!,
-    SERVER_WG_PUBLIC_KEY: process.env.SERVER_WG_PUBLIC_KEY!,
     DEFAULT_HOST: process.env.DEFAULT_HOST || "casaos",
     DEFAULT_HOST_PORT: process.env.DEFAULT_HOST_PORT || "8080",
     PROVIDER: process.env.PROVIDER!,

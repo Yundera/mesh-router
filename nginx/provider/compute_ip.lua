@@ -2,8 +2,8 @@ local http = require "resty.http"
 local config = dofile("/etc/nginx/lua/config.lua")
 
 local host = ngx.var.host
--- local uri = ngx.var.request_uri  -- Get the full request URI
--- local full_url = host .. uri  -- Concatenate host and URI for full URL processing
+local uri = ngx.var.request_uri  -- Get the full request URI
+local full_url = host .. uri  -- Concatenate host and URI for full URL processing
 
 -- Attempt to retrieve the cached backend IP
 -- local backend_ip = cache:get(host)
@@ -13,7 +13,7 @@ local host = ngx.var.host
 -- end
 
 -- Access the static map
-local backend_url = config.override[host]
+local backend_url = config.override[full_url]
 if backend_url then
     ngx.var.backend = backend_url
     return

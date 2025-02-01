@@ -1,20 +1,26 @@
 # MeshRouter
 
-## Domain format
-the name is one of the following:
-- IPNS PeerID
-- ENS Name
-- Name proposed by the user on registration (if accepted by the provider)
+## Sponsor
+Thanks for sponsoring this project
 
-The domain is the domain of the provider (eg domain.com).
+**Yundera** : [yundera.com](https://yundera.com) - Easy to use cloud server for open source container applications.  
+**NSL.SH** : [nsl.sh](https://nsl.sh) - free domain for opensouce project.
+
+## Sibling project
+[CasaIMG](https://github.com/worph/casa-img) - providing easy management of docker images and compatible with mesh router.
+
+## Domain format
+the name is one of the following:  
+`<name>` : Name proposed by the user on registration (if accepted by the provider)  
+`<domain>` : The domain is the domain of the provider (eg domain.com).  
 
 The service (optional) is the hostname on the requester's network to forward the request to. (default to "default" hostname or DEFAULT_HOST is defined).
-The port (optional) to use on the service (default to 80).
-<port>.<service>.<name>.<domain>
+The port (optional) to use on the service (default to 80).  
+`<port>.<service>.<name>.<domain>`
 
 Since some certificate authorities do not allow the use of multiple sub sub domain in the certificate, the following format is also supported.
-The points can be replaced by dash (-) in the domain name.
-<port>-<service>-<name>.<domain>
+The points can be replaced by dash (-) in the domain name.  
+`<port>-<service>-<name>.<domain>`
 
 ## Domain Routing: How It Works
 
@@ -53,12 +59,8 @@ docker run -d \
 - Routing of subdomains
 - VPN functionality (protects requester anonymity)
 - HTTPS only (no TCP port sharing)
-- ENS support
-- IPNS support (default registration with an IPFS PeerID, which becomes the unique name)
-- Maintains a mapping of IPFS PeerID to NAS IP
 - Provides mechanisms for NAS IP subscription
 - Endpoint provisioning (e.g., `Jellyfin-metazla.metadata.box`)
-- Includes Kubo and IPDR for easy sharing
 - Stateless (no persistent storage) – acts as a gateway for web2
 - Allows NAS to register through VPN to avoid NAT issues
 

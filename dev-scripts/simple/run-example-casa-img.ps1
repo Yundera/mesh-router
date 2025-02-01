@@ -1,5 +1,6 @@
 # Define variables
-$imageName = "nasselle/casa-img"
+#$imageName = "nasselle/casa-img"
+$imageName = "casa-img"
 $containerName = "casa-os-dev"
 
 try {
@@ -28,7 +29,8 @@ try {
     --hostname casaos `
     -e REF_NET=meta `
     -e REF_PORT=80 `
-    -e REF_DOMAIN=test.localhost `
+    -e REF_PORT=80 `
+    -e REF_DOMAIN=dev.test.localhost `
     -e DATA_ROOT=/c/DATA `
     --label mesh.default.port=8080 `
     -v C:\DATA:/DATA `

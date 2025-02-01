@@ -97,9 +97,10 @@ export class ApiServer {
                         console.log(`found ip for ${ROOT_DOMAIN}: ${rootIp}`);
                         return res.send(`http://${rootIp}:80`);
                     } else {
+                        //in this case is will use the default host in the config server
                         console.log(`name not found for ${host}`);
                         res.status(404).send('Name not found');
-                        //in this case is will use the default host in the config server
+                        return;
                     }
                 }
 
