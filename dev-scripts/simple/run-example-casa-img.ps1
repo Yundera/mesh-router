@@ -25,11 +25,9 @@ try {
     docker run -d `
     -p 12380:8080 `
     --expose 8080 `
-    --network meta `
+    --network pcs `
     --hostname casaos `
-    -e REF_NET=meta `
-    -e REF_PORT=80 `
-    -e REF_PORT=80 `
+    -e REF_NET=pcs `
     -e REF_DOMAIN=dev.test.localhost `
     -e DATA_ROOT=/c/DATA `
     --label mesh.default.port=8080 `
