@@ -59,4 +59,7 @@ RUN chmod +x /entrypoint.sh
 ARG BUILD_VERSION
 ENV BUILD_VERSION=${BUILD_VERSION}
 
+RUN mkdir -p /tmp/nginx/client_temp
+RUN chmod 700 /tmp/nginx/client_temp
+
 ENTRYPOINT ["/entrypoint.sh"]
