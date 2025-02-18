@@ -1,7 +1,7 @@
 # Define variables
 $imageName = "mesh-router"
-$containerName = "mesh-router-localhost"
-$dockerfilePath = "../.."
+$containerName = "mesh-router-provider-test.localhost"
+$dockerfilePath = "../../.."
 $originalPath = Get-Location
 
 # Change to the Dockerfile directory
@@ -31,15 +31,21 @@ try {
     }
 
     # Run the Docker container
+    # docker network create meta
     Write-Host "Running the Docker container..."
-    #provider network is used locally so we can get an host name to resolve from inside the container (in prod it will just be the domain)
+    # provider network is used locally so we can get an host name to resolve from inside the container (in prod it will just be the domain)
+    # in this case we use "dprovider" as the hostname os the provider container is resolved from the requester but the announced domain is localhost
+    # you have to create a network called provider docker network create provider
     docker run -d `
     --cap-add NET_ADMIN `
-    -e PROVIDER="http://dprovider" `
-    -e DEFAULT_HOST="casaos" `
-    -e DEFAULT_HOST_PORT="8080" `
-    --network meta `
+    --cap-add SYS_MODULE `
+    --sysctl="net.ipv4.conf.all.src_valid_mark=1" `
+    -e PROVIDER_ANNONCE_DOMAIN=test.localhost `
+    -e VPN_ENDPOINT_ANNOUNCE=dprovider `
+    -p 80:80 `
+    -p 51820:51820/udp `
     --network provider `
+    --hostname dprovider `
     --name $containerName $imageName
 
     if ($LASTEXITCODE -ne 0) {

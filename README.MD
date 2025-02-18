@@ -60,7 +60,7 @@ docker run -d \
 - VPN functionality (protects requester anonymity)
 - HTTPS only (no TCP port sharing)
 - Provides mechanisms for NAS IP subscription
-- Endpoint provisioning (e.g., `Jellyfin-metazla.metadata.box`)
+- Endpoint provisioning (e.g., `casaos-user1.domain.com`)
 - Stateless (no persistent storage) – acts as a gateway for web2
 - Allows NAS to register through VPN to avoid NAT issues
 
@@ -100,3 +100,9 @@ docker run -d \
     volumes:
       - ./config.lua:/etc/nginx/lua/config.lua #optional
 ```
+
+# Development
+
+To start development, use the scripts in `./dev-scripts/windows/simple` folder, 
+which contains everything needed to run mesh-router in a basic environment.  
+For detailed instructions, see [simple example](dev-scripts/windows/simple/readme.md).

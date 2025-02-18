@@ -1,7 +1,7 @@
 # Define variables
 $imageName = "mesh-router"
 $containerName = "mesh-router-provider-test.localhost"
-$dockerfilePath = "../.."
+$dockerfilePath = "../../.."
 $originalPath = Get-Location
 
 # Change to the Dockerfile directory
@@ -42,7 +42,8 @@ try {
     --sysctl="net.ipv4.conf.all.src_valid_mark=1" `
     -e PROVIDER_ANNONCE_DOMAIN=test.localhost `
     -e VPN_ENDPOINT_ANNOUNCE=dprovider `
-    -p 80:80 `
+    -e SSL=true `
+    -p 443:443 `
     -p 51820:51820/udp `
     --network provider `
     --hostname dprovider `
