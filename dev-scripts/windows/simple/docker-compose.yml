@@ -1,0 +1,71 @@
+#open http://dev.test.localhost
+services:
+
+  mesh-router-provider:
+    hostname: dprovider
+    image: mesh-router:latest
+    container_name: mesh-router-provider-test.localhost
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    environment:
+      - PROVIDER_ANNONCE_DOMAIN=test.localhost
+      - VPN_ENDPOINT_ANNOUNCE=dprovider
+    ports:
+      - "80:80"
+      - "51820:51820/udp"
+    networks:
+      - provider
+
+
+  mesh-router-localhost:
+    image: mesh-router:latest
+    container_name: mesh-router-localhost
+    restart: unless-stopped
+    depends_on:
+      - mesh-router-provider
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    environment:
+      - PROVIDER=http://dprovider,dev
+      - DEFAULT_HOST=casaos
+      - DEFAULT_HOST_PORT=8080
+    networks:
+      - pcs
+      - provider
+
+
+  casa-os-dev:
+    image: casa-img:latest
+    container_name: casa-os-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    expose:
+      - 8080
+    environment:
+      - REF_NET=pcs
+      - REF_DOMAIN=dev.test.localhost
+      - DATA_ROOT=/c/DATA
+    volumes:
+      - C:\DATA:/DATA
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - pcs
+    hostname: casaos
+
+networks:
+  pcs:
+    driver: bridge
+    name: pcs
+  provider:
+    driver: bridge
+    name: provider
