@@ -1,5 +1,5 @@
 # .github/workflows/docker-publish.yml
-name: Mesh Router Image
+name: Mesh Router Docker Publish
 on:
   push:
     branches: [ main ]
