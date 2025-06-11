@@ -1,3 +1,6 @@
+
+[![Build and Push Docker Image](https://github.com/Yundera/mesh-router/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Yundera/mesh-router/actions/workflows/docker-publish.yml)
+
 # MeshRouter
 
 ## Sponsor
