@@ -43,7 +43,12 @@ else
     ##########################
     # Requester configuration
     ##########################
-    cp /etc/nginx/conf.d/requester.conf.template /etc/nginx/conf.d/requester.conf
+    # Set defaults for routing target
+    export ROUTING_TARGET_HOST=${ROUTING_TARGET_HOST:-caddy}
+    export ROUTING_TARGET_PORT=${ROUTING_TARGET_PORT:-80}
+
+    # Substitute environment variables in the template
+    envsubst '${ROUTING_TARGET_HOST} ${ROUTING_TARGET_PORT}' < /etc/nginx/conf.d/requester.conf.template > /etc/nginx/conf.d/requester.conf
 fi
 
 mkdir -p /var/log/nginx/

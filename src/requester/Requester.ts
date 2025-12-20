@@ -5,7 +5,6 @@ import {exec as execCallback} from 'child_process';
 import {promisify} from 'util';
 import {Config} from "./RequesterConfig.js";
 import {HandshakesWatcher} from './HandshakesWatcher.js';
-import {readDomainConfig, writeDomainConfig, writeMetadataFiles} from "./WriteMeta.js";
 import {getConfigPath} from "./WireGuard.js";
 import {ProviderTools, registerProvider, waitForProvider} from "./ProviderTools.js";
 import {getOrGenerateKeyPair} from "./KeyPair.js";
@@ -40,9 +39,6 @@ watcher.on('error', ({ provider, error }) => {
 export async function updateRequestersFromConfig(config: Config) {
   currentConfig = config;
   const newProviders = new Set(config.providers.map(p => p.provider));
-
-  // Write metadata files
-  await writeMetadataFiles(config);
 
   // Stop providers that are not in the new config
   for (const activeProvider of activeProviders) {
@@ -119,29 +115,7 @@ async function startRequester(provider:ProviderTools) {
     });
 
     console.log("Received configuration:", JSON.stringify(result,null,2));
-
-    // Update domain configuration
-    try {
-      // Read existing config
-      const domainConfig = await readDomainConfig();
-
-      // Update configuration with new domain
-      domainConfig.domain = domainConfig.domain || [];
-      domainConfig.domain.push(result.domain);
-      domainConfig.domain = Array.from(new Set(domainConfig.domain));
-      //sort domain by longest string first
-      domainConfig.domain.sort((a, b) => b.length - a.length);
-      domainConfig.config = domainConfig.config || {};
-      domainConfig.config[result.domain] = {
-        defaultService: provider.defaultService,
-      };
-
-      // Write updated configuration
-      await writeDomainConfig(domainConfig);
-      console.log(`Domain ${result.domain} added to configuration successfully`);
-    } catch (err) {
-      console.error('Error updating domain configuration:', err);
-    }
+    console.log(`Domain ${result.domain} registered successfully`);
 
     // Generate config with domain-specific path
     const configPath = await getConfigPath(providerURL);

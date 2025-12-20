@@ -4,9 +4,9 @@ import { EventEmitter } from 'events';
 
 const exec = promisify(execCallback);
 
-//note that the wg persitent keepalive is set to 60 seconds so it should not be less than that 2x that value
-const HANDSHAKE_INTERVAL_SECONDS = 5 * 60; // 10 minutes
-const HANDSHAKE_THRESHOLD_SECONDS = 5 * 60; // 10 minutes
+// Note: WireGuard persistent keepalive is set to 60 seconds, so threshold should be at least 2x that value
+const HANDSHAKE_INTERVAL_SECONDS = 5 * 60; // 5 minutes
+const HANDSHAKE_THRESHOLD_SECONDS = 5 * 60; // 5 minutes
 
 interface HandshakeData {
   interface: string;

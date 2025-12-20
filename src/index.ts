@@ -24,13 +24,7 @@ import {RequesterConfig} from "./requester/RequesterConfig.js";
     rconfig.ensureDefaultConfig({
       providers: [{
         provider: config.PROVIDER,
-        defaultService: config.DEFAULT_HOST,
       }],
-      services: {
-        [config.DEFAULT_HOST]: {
-          defaultPort: config.DEFAULT_HOST_PORT,
-        },
-      },
     });
     rconfig.watchConfig();// will watch the file for changes
     rconfig.on('configUpdated', async (newConfig) => {

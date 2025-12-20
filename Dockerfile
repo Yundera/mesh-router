@@ -48,7 +48,6 @@ COPY nginx/provider/root/ /usr/share/nginx/html-provider/
 
 # requester code
 COPY nginx/requester/requester.template.conf /etc/nginx/conf.d/requester.conf.template
-COPY nginx/requester/route.lua /etc/nginx/lua/route.lua
 COPY nginx/requester/root/ /usr/share/nginx/html-requester/
 
 # Entrypoint script to run Certbot and start Nginx

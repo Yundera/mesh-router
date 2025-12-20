@@ -6,13 +6,12 @@ const execPromise = promisify(exec);
 
 export interface ProviderTools {
   provider: string;
-  defaultService?: string;
 }
 
 /**
  * Executes a curl command and returns the parsed JSON response
  */
-async function executeCurl(command: string): Promise<any> {
+async function executeCurl(command: string): Promise<unknown> {
   try {
     const { stdout, stderr } = await execPromise(command);
     if (stderr && !stderr.includes('  % Total')) {
@@ -37,7 +36,7 @@ export async function registerProvider(providerURL: string, dta: registerSendDTO
     const curlCommand = `curl -s -k -X POST -H "Content-Type: application/json" -d "${jsonData}" ${providerURL}/api/register`;
 
     // Execute curl and parse the response
-    return await executeCurl(curlCommand);
+    return await executeCurl(curlCommand) as registerRecvDTO;
   } catch (error) {
     console.error(`Error registering provider at ${providerURL}:`, error);
     throw error;

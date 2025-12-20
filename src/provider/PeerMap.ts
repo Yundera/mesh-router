@@ -47,11 +47,11 @@ export class PeerMap {
             });
           }
         } catch (err) {
-          console.error(`Failed to parse peer section: ${err.message}`);
+          console.error(`Failed to parse peer section:`, err);
         }
       }
     } catch (err) {
-      console.error(`Failed to load peers from config: ${err.message}`);
+      console.error(`Failed to load peers from config:`, err);
       throw err;
     }
   }
@@ -70,7 +70,7 @@ export class PeerMap {
       newContent = newContent.replace(/\n\s*\n+/g, '\n\n');
       fs.writeFileSync(this.wgConfPath, newContent, 'utf8');
     } catch (err) {
-      console.error(`Failed to update config file: ${err.message}`);
+      console.error(`Failed to update config file:`, err);
       throw err;
     }
   }
@@ -90,7 +90,7 @@ export class PeerMap {
         execSync(`wg set wg0 peer ${peer.publicKey} remove`);
       }
     } catch (err) {
-      console.error(`Failed to update WireGuard interface: ${err.message}`);
+      console.error(`Failed to update WireGuard interface:`, err);
       throw err;
     }
   }

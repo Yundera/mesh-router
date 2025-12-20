@@ -3,13 +3,7 @@ import { ConfigService } from "../lib/ConfigFileWatcher.js";
 export interface Config {
   providers: {
     provider: string;
-    defaultService?: string;
   }[];
-  services?: {
-    [key: string]: {
-      defaultPort: string;
-    };
-  }
 }
 
 export function configValidator(config: Config): void {
@@ -29,28 +23,7 @@ export function configValidator(config: Config): void {
     if (!providerConfig.provider.startsWith('http')) {
       throw new Error(`Invalid configuration: provider must start with http in providers[${index}]`);
     }
-
-    // Validate defaultService if provided
-    if (providerConfig.defaultService !== undefined && providerConfig.defaultService.trim() === '') {
-      throw new Error(`Invalid configuration: defaultService cannot be empty in providers[${index}]`);
-    }
   });
-
-  // Validate services if provided
-  if (config.services) {
-    Object.entries(config.services).forEach(([serviceName, service]) => {
-      if (serviceName.trim() === '') {
-        throw new Error('Invalid configuration: service name cannot be empty');
-      }
-
-      if (service.defaultPort !== undefined) {
-        const port = parseInt(service.defaultPort);
-        if (isNaN(port) || port < 1 || port > 65535) {
-          throw new Error(`Invalid configuration: defaultPort must be a valid port number (1-65535) for service "${serviceName}"`);
-        }
-      }
-    });
-  }
 }
 
 export class RequesterConfig extends ConfigService<Config> {

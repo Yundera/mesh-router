@@ -16,10 +16,10 @@ interface EnvConfig {
 
     /** **/
 
-    /** [requester] Default routing host (request will be routed to this host by default) */
-    DEFAULT_HOST: string;
-    /** [requester] Default routing host port (request will be routed to this host by default)*/
-    DEFAULT_HOST_PORT: string;
+    /** [requester] Routing target host - all traffic will be forwarded to this container */
+    ROUTING_TARGET_HOST: string;
+    /** [requester] Routing target port */
+    ROUTING_TARGET_PORT: string;
     /** [requester]  provider connexion string <url>,<userid>,<secret> */
     PROVIDER: string;
 }
@@ -33,7 +33,7 @@ export const config: EnvConfig = {
     VPN_PORT: process.env.VPN_PORT,
     VPN_ENDPOINT_ANNOUNCE: process.env.VPN_ENDPOINT_ANNOUNCE!,
     PROVIDER_ANNONCE_DOMAIN: process.env.PROVIDER_ANNONCE_DOMAIN!,
-    DEFAULT_HOST: process.env.DEFAULT_HOST || "casaos",
-    DEFAULT_HOST_PORT: process.env.DEFAULT_HOST_PORT || "8080",
+    ROUTING_TARGET_HOST: process.env.ROUTING_TARGET_HOST || "caddy",
+    ROUTING_TARGET_PORT: process.env.ROUTING_TARGET_PORT || "80",
     PROVIDER: process.env.PROVIDER!,
 };

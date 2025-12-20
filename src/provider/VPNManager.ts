@@ -153,7 +153,7 @@ PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | gre
     await execAsync('wg-quick up wg0');
   }
 
-  private setWgPeer(vpnPublicKey: string, meta: Meta, uniqueIp: string = undefined): string {
+  private setWgPeer(vpnPublicKey: string, meta: Meta, uniqueIp?: string): string {
     if (!uniqueIp) {
       uniqueIp = this.ipManager.getFreeIp();
     } else {
@@ -208,7 +208,7 @@ PostDown = iptables -t nat -D POSTROUTING -s ${this.ipRange} -o $(ip route | gre
     };
   }
 
-  public getIpFromName(name: string): string {
+  public getIpFromName(name: string): string | null {
     try {
       const peer = this.peerMap.get(name);
       return peer ? peer.ip : null;

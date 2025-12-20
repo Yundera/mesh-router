@@ -6,94 +6,189 @@
 ## Sponsor
 Thanks for sponsoring this project
 
-**Yundera** : [yundera.com](https://yundera.com) - Easy to use cloud server for open source container applications.  
+**Yundera** : [yundera.com](https://yundera.com) - Easy to use cloud server for open source container applications.
 **NSL.SH** : [nsl.sh](https://nsl.sh) - free domain for opensouce project.
 
 ## Sibling project
 [CasaIMG](https://github.com/worph/casa-img) - providing easy management of docker images and compatible with mesh router.
 
-## Domain format
-the name is one of the following:  
-`<name>` : Name proposed by the user on registration (if accepted by the provider)  
-`<domain>` : The domain is the domain of the provider (eg domain.com).  
+## Architecture
 
-The service (optional) is the hostname on the requester's network to forward the request to. (default to "default" hostname or DEFAULT_HOST is defined).
-The port (optional) to use on the service (default to 80).  
-`<port>.<service>.<name>.<domain>`
+MeshRouter is a WireGuard-based VPN tunneling solution that enables secure routing of traffic between a provider (public server) and requesters (private PCS instances).
 
-Since some certificate authorities do not allow the use of multiple sub sub domain in the certificate, the following format is also supported.
-The points can be replaced by dash (-) in the domain name.  
-`<port>-<service>-<name>.<domain>`
-
-## Domain Routing: How It Works
-
-This image supports two modes: **Domain Provider** and **Domain Requester**.
-
-- **Domain Provider**: Supplies a domain to the requester, e.g., `domain.com`.
-- **Domain Requester**: Registers with the provider to obtain a subdomain, e.g., `name.domain.com`. Any further sub-subdomains (e.g., `sub.name.domain.com`) will be routed to the requester. Communication between the provider and requester is secured and encrypted using a VPN (Wireguard).
-
-### Requester
-
-The requester registers with the provider to receive a subdomain. It can then redirect traffic to any container on the same network using the hostname.
-
-For example, if you have a container named `casaos` on the same network as the requester, traffic to `casaos.name.domain.com` will be redirected to it.
-
-If a default host is defined (e.g., `default`), traffic to `name.domain.com` will be redirected to the container named `default`.
-
-#### Example Configuration for the Requester
-
-```sh
-docker run -d \
-  --cap-add NET_ADMIN \
-  -e PROVIDER="https://domain.com" \    # The provider URL to register with
-  -e DEFAULT_HOST="casaos" \            # Default host to redirect requests from name.domain.com
-  -e NAME="nas" \                       # Desired subdomain name
-  --network meta \                      # Network to communicate with other containers
-  --sysctl net.ipv4.ip_forward=1 \      # Enable IP forwarding
-  --sysctl net.ipv4.conf.all.src_valid_mark=1 \  # Required for Wireguard
-  $imageName
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                            PCS Instance                              │
+│                                                                      │
+│  ┌──────────────┐    ┌─────────────┐    ┌─────────────────────────┐ │
+│  │ mesh-router  │───▶│   Caddy     │───▶│  Services (with labels) │ │
+│  │  (port 80)   │    │  (port 80)  │    │  - casaos:8080          │ │
+│  │              │    │             │    │  - app1:3000            │ │
+│  │  WireGuard   │    │  Docker     │    │  - app2:8080            │ │
+│  │  Tunnel ▲    │    │  Labels     │    │                         │ │
+│  └──────────────┘    └─────────────┘    └─────────────────────────┘ │
+│              │                                                       │
+└──────────────│───────────────────────────────────────────────────────┘
+               │
+               ▼
+        ┌─────────────┐
+        │  Provider   │
+        │  (nsl.sh)   │
+        └─────────────┘
 ```
 
-### Provider
+### How It Works
 
-#### Scope:
+1. **Mesh Router (Requester)**: Establishes WireGuard tunnel to provider and forwards all incoming traffic to Caddy
+2. **Caddy**: Uses [caddy-docker-proxy](https://github.com/lucaslorentz/caddy-docker-proxy) to discover services via Docker labels and routes traffic accordingly
+3. **Services**: Containers with Caddy labels define their own routing rules
 
-- TLS management (HTTPS)
-- Routing of subdomains
-- VPN functionality (protects requester anonymity)
-- HTTPS only (no TCP port sharing)
-- Provides mechanisms for NAS IP subscription
-- Endpoint provisioning (e.g., `casaos-user1.domain.com`)
-- Stateless (no persistent storage) – acts as a gateway for web2
-- Allows NAS to register through VPN to avoid NAT issues
+### Traffic Flow
 
-#### Cloudflare
+1. **External Request**: User requests `https://app.user.nsl.sh`
+2. **Provider**: nsl.sh receives request, looks up user's VPN IP, forwards via WireGuard
+3. **Mesh Router**: Receives request on port 80, forwards to Caddy
+4. **Caddy**: Matches request against container labels, proxies to appropriate service
+5. **Service**: Container handles request and returns response
 
-It is recommended to set up Cloudflare for TLS management and DDoS protection. The provider container will use a self-signed certificate for end-to-end encryption.
+## Domain Routing
 
-#### Example Configuration for the Provider
+The mesh-router operates in two modes:
 
-```sh
-docker run -d \
-  --cap-add NET_ADMIN \
-  -e PROVIDER_ANNOUNCE_DOMAIN=domain.com \  # The domain to be provided
-  -p 3000:3000 \                           # Port for requester registration
-  -p 443:443 \                             # Main HTTPS entry point
-  -p 51820:51820/udp \                     # Wireguard VPN port for NAS tunnels
-  --sysctl net.ipv4.ip_forward=1 \      # Enable IP forwarding
-  --sysctl net.ipv4.conf.all.src_valid_mark=1 \ # Required for Wireguard
-  $imageName
+- **Provider Mode**: Runs on public servers, accepts incoming connections and routes traffic to registered requesters via WireGuard
+- **Requester Mode**: Runs on PCS instances, establishes VPN tunnel to provider and forwards traffic to Caddy for local routing
+
+### Domain Format
+
+`<name>` : Name proposed by the user on registration (if accepted by the provider)
+`<domain>` : The domain of the provider (eg nsl.sh)
+
+Full format: `<service>.<name>.<domain>` or `<service>-<name>.<domain>`
+
+Example: `nextcloud.mynas.nsl.sh` or `nextcloud-mynas.nsl.sh`
+
+## Requester Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROVIDER` | - | Provider connection string: `<url>,<userId>,<signature>` |
+| `ROUTING_TARGET_HOST` | `caddy` | Target container hostname for traffic forwarding |
+| `ROUTING_TARGET_PORT` | `80` | Target container port |
+
+### Docker Compose Example
+
+```yaml
+services:
+  mesh-router:
+    image: mesh-router:latest
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    environment:
+      - PROVIDER=https://nsl.sh,<userId>,<signature>
+      - ROUTING_TARGET_HOST=caddy
+      - ROUTING_TARGET_PORT=80
+    networks:
+      - pcs
+    depends_on:
+      - caddy
+
+  caddy:
+    image: lucaslorentz/caddy-docker-proxy:ci-alpine
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CADDY_INGRESS_NETWORKS=pcs
+    networks:
+      - pcs
+
+  casaos:
+    image: casa-img:latest
+    labels:
+      caddy: ":80"
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+    networks:
+      - pcs
+
+networks:
+  pcs:
+    driver: bridge
+    name: pcs
 ```
-```yml
+
+## Caddy Docker Labels
+
+Labels define how Caddy routes traffic to each container:
+
+```yaml
+labels:
+  caddy: ":80"                              # Match all requests on port 80
+  caddy.reverse_proxy: "{{upstreams 8080}}" # Proxy to container port 8080
+```
+
+### `{{upstreams <port>}}` Template
+
+This template function:
+- Resolves to the container's IP address on the ingress network
+- Uses the specified port as the upstream port
+- Example: `{{upstreams 8080}}` → `172.20.0.2:8080`
+
+### Routing Examples
+
+**Route all traffic to a service:**
+```yaml
+labels:
+  caddy: ":80"
+  caddy.reverse_proxy: "{{upstreams 3000}}"
+```
+
+**Route by hostname:**
+```yaml
+labels:
+  caddy: "myapp.example.com"
+  caddy.reverse_proxy: "{{upstreams 8080}}"
+```
+
+**Route with path matching:**
+```yaml
+labels:
+  caddy: ":80"
+  caddy.0_matcher: "path /api/*"
+  caddy.0_reverse_proxy: "{{upstreams 8080}}"
+```
+
+## Provider Configuration
+
+Provider mode is used on public servers to accept incoming VPN connections.
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PROVIDER_ANNONCE_DOMAIN` | Domain to announce (e.g., `nsl.sh`) |
+| `AUTH_API_URL` | URL for user authentication API |
+| `VPN_IP_RANGE` | IP range for VPN clients (e.g., `10.77.0.0/16`) |
+| `VPN_PORT` | WireGuard port (default: `51820`) |
+| `VPN_ENDPOINT_ANNOUNCE` | Public endpoint for VPN connections |
+
+### Docker Compose Example
+
+```yaml
+services:
   routing:
-    image: $imageName
+    image: mesh-router:latest
     ports:
       - "80:80"
       - "443:443"
       - "51820:51820/udp"
     environment:
       - PROVIDER_ANNONCE_DOMAIN=domain.com
-      - VPN_ENDPOINT_ANNOUNCE=x.x.x.x # Use the direct IP (beware a domain behind cloudflare will not work)
+      - VPN_ENDPOINT_ANNOUNCE=x.x.x.x  # Use direct IP (not behind Cloudflare)
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
@@ -101,11 +196,15 @@ docker run -d \
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.src_valid_mark=1
     volumes:
-      - ./config.lua:/etc/nginx/lua/config.lua #optional
+      - ./config.lua:/etc/nginx/lua/config.lua  # optional
 ```
+
+### Cloudflare
+
+It is recommended to set up Cloudflare for TLS management and DDoS protection. The provider container will use a self-signed certificate for end-to-end encryption.
 
 # Development
 
-To start development, use the scripts in `./dev-scripts/windows/simple` folder, 
-which contains everything needed to run mesh-router in a basic environment.  
+To start development, use the scripts in `./dev-scripts/windows/simple` folder,
+which contains everything needed to run mesh-router in a basic environment.
 For detailed instructions, see [simple example](dev-scripts/windows/simple/readme.md).

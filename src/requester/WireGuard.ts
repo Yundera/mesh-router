@@ -1,4 +1,4 @@
-export async function getConfigPath(providerString) {
+export async function getConfigPath(providerString: string): Promise<string> {
   const MAX_INTERFACE_LENGTH = 15; // Total max length including wg_ prefix
   const PREFIX = 'wg_';
   const MAX_IDENTIFIER_LENGTH = MAX_INTERFACE_LENGTH - PREFIX.length;
